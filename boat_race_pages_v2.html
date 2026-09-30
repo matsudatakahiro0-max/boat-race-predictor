@@ -1,0 +1,30 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><title>競艇予想</title>
+<style>body{font-family:-apple-system,sans-serif;background:#f3f5f7;margin:0;color:#17212b}header{background:white;padding:14px;font-weight:800}main{padding:10px;max-width:800px;margin:auto}.card{background:white;border-radius:12px;padding:12px;margin:10px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}select,input,button{width:100%;padding:11px;font-size:16px;border:1px solid #ccd3dc;border-radius:8px}button{background:#1677ff;color:#fff;border:0;font-weight:800}.row{padding:8px 0;border-bottom:1px solid #eee}.pick{font-size:19px;font-weight:800;line-height:1.7}.small{font-size:12px;color:#65717c}.ok{padding:9px;background:#e8f7ed;border-radius:8px}.err{padding:9px;background:#ffe8e8;border-radius:8px;color:#9d1b1b}</style></head><body><header>競艇予想システム v2.0</header><main>
+<div class="card"><div class="grid"><input id="date" type="date"><select id="stadium"><option value="1">桐生</option><option value="2">戸田</option><option value="3">江戸川</option><option value="4">平和島</option><option value="5">多摩川</option><option value="6">浜名湖</option><option value="7">蒲郡</option><option value="8">常滑</option><option value="9">津</option><option value="10">三国</option><option value="11">びわこ</option><option value="12">住之江</option><option value="13">尼崎</option><option value="14">鳴門</option><option value="15">丸亀</option><option value="16">児島</option><option value="17">宮島</option><option value="18">徳山</option><option value="19">下関</option><option value="20">若松</option><option value="21" selected>芦屋</option><option value="22">福岡</option><option value="23">唐津</option><option value="24">大村</option></select></div><div class="grid" style="margin-top:8px"><select id="race"><option value="1">1R</option><option value="2">2R</option><option value="3">3R</option><option value="4">4R</option><option value="5">5R</option><option value="6">6R</option><option value="7">7R</option><option value="8">8R</option><option value="9">9R</option><option value="10">10R</option><option value="11">11R</option><option value="12">12R</option></select><button id="go">データ取得・予想</button></div><div id="status" class="small" style="margin-top:8px">場・レースを選択してください</div></div>
+<div class="card"><b>6艇データ</b><div id="racers" class="small">未取得</div></div>
+<div class="card"><b>舟券候補</b><div id="info" class="small">未取得</div><div id="main" class="pick"></div><div id="fail" class="pick"></div></div></main>
+<script>
+const $=x=>document.getElementById(x),dt=$("date"),st=$("stadium"),rc=$("race");
+let now=new Date();dt.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+function n(v,d=0){v=Number(v);return Number.isFinite(v)?v:d}
+function score(r,l){let s=n(r.national_win_rate)*10+n(r.local_win_rate)*4+n(r.motor_top_2_percent)*.3+(.22-n(r.average_start_timing,.20))*90;if(l===1)s+=22;if(l===2)s+=8;if(l===3)s+=7;if(l===4)s+=4;return s}
+async function run(){
+ let status=$("status");status.className="small";status.textContent="取得中…";$("racers").innerHTML="";$("main").textContent="";$("fail").textContent="";
+ try{
+  let ds=dt.value.replaceAll("-",""), url=`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`;
+  let res=await fetch(url,{cache:"no-store"});if(!res.ok)throw Error("API "+res.status);
+  let data=await res.json(), rr=data?.programs?.stadiums?.[String(st.value)]?.races?.[String(rc.value)];
+  if(!rr)throw Error("このレースのデータがありません");
+  let A=[];
+  for(let i=1;i<=6;i++){let r=rr.racers?.[String(i)]||{},p=rr.preview?.racers?.[String(i)]||{},sc=score(r,i);A.push({i,sc,r,p});
+   $("racers").innerHTML+=`<div class="row"><b>${i}号艇 ${r.name||"—"}</b><br>平均ST ${r.average_start_timing??"—"} / 全国勝率 ${r.national_win_rate??"—"} / 当地 ${r.local_win_rate??"—"} / モーター2連 ${r.motor_top_2_percent??"—"}%<br>展示ST ${p.start_timing??"—"} / 展示 ${p.exhibition_time??"—"} / 進入 ${p.course_number??"—"}</div>`;
+  }
+  let o=A.slice(1).sort((a,b)=>b.sc-a.sc),a=o[0],b=o[1],c=o[2],avg=o.reduce((q,x)=>q+x.sc,0)/5,esc=Math.max(35,Math.min(82,Math.round(55+(A[0].sc-avg)*.45)));
+  let mains=[`1-${a.i}-${b.i}`,`1-${b.i}-${a.i}`,`1-${a.i}-${c.i}`,`1-${b.i}-${c.i}`],fails=[`${a.i}-1-${b.i}`,`${a.i}-${b.i}-1`];
+  $("info").className="ok";$("info").textContent=`推定イン逃げ ${esc}%`;
+  $("main").textContent="本線　"+mains.join(" / ");$("fail").textContent="逃げ失敗　"+fails.join(" / ");
+  status.textContent="取得完了";
+ }catch(e){status.className="err";status.textContent="取得失敗："+e.message}
+}
+$("go").addEventListener("click",run);
+</script></body></html>
