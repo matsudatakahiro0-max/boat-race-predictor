@@ -1,0 +1,434 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><title>競艇予想</title>
+<style>body{font-family:-apple-system,sans-serif;background:#f3f5f7;margin:0;color:#17212b}header{background:white;padding:14px;font-weight:800}main{padding:10px;max-width:800px;margin:auto}.card{background:white;border-radius:12px;padding:12px;margin:10px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}select,input,button{width:100%;padding:11px;font-size:16px;border:1px solid #ccd3dc;border-radius:8px}button{background:#1677ff;color:#fff;border:0;font-weight:800}.row{padding:8px 0;border-bottom:1px solid #eee}.pick{font-size:19px;font-weight:800;line-height:1.7}.small{font-size:12px;color:#65717c}.ok{padding:9px;background:#e8f7ed;border-radius:8px}.err{padding:9px;background:#ffe8e8;border-radius:8px;color:#9d1b1b}
+.card b{font-size:15px}.card{border:1px solid #dfe4ea;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.row{line-height:1.6}.pick{background:#f7f9fc;padding:9px;border-radius:9px;margin-top:8px}
+#main{border-left:4px solid #1677ff}#categoryB{border-left:4px solid #168a75}#categoryC{border-left:4px solid #bd8323}#fail{border-left:4px solid #777}
+#decision{font-size:16px}.small{line-height:1.6}
+*{box-sizing:border-box}.sum-scroll{overflow-x:auto}.sum-table{width:100%;border-collapse:collapse;font-size:12px;min-width:390px}.sum-table th,.sum-table td{padding:6px;text-align:center;border-bottom:1px solid #eee}.sum-table input{min-width:64px;padding:7px;font-size:14px}.sum-actions{display:flex;gap:8px;margin:10px 0}.sum-actions>*{flex:1}.sum-good{color:#08733e}.sum-bad{color:#a62929}a{color:#126bd3}label{display:block;margin:8px 0}label input[type=checkbox]{width:auto}details{margin:8px 0}
+</style></head><body><header>競艇予想システム WATER 4.8 · 全120通りを順位付け</header><main>
+<div class="card"><div class="grid"><input id="date" type="date"><select id="stadium"><option value="1">桐生</option><option value="2">戸田</option><option value="3">江戸川</option><option value="4">平和島</option><option value="5">多摩川</option><option value="6">浜名湖</option><option value="7">蒲郡</option><option value="8">常滑</option><option value="9">津</option><option value="10">三国</option><option value="11">びわこ</option><option value="12">住之江</option><option value="13">尼崎</option><option value="14">鳴門</option><option value="15">丸亀</option><option value="16">児島</option><option value="17">宮島</option><option value="18">徳山</option><option value="19">下関</option><option value="20">若松</option><option value="21" selected>芦屋</option><option value="22">福岡</option><option value="23">唐津</option><option value="24">大村</option></select></div><div class="grid" style="margin-top:8px"><select id="race"><option value="1">1R</option><option value="2">2R</option><option value="3">3R</option><option value="4">4R</option><option value="5">5R</option><option value="6">6R</option><option value="7">7R</option><option value="8">8R</option><option value="9">9R</option><option value="10">10R</option><option value="11">11R</option><option value="12">12R</option></select><button id="go">データ取得・予想</button></div><div id="status" class="small" style="margin-top:8px">場・レースを選択してください</div></div>
+<div class="card"><b>水面・場特性</b><div id="venueTraits" class="small">場を選択すると表示します</div></div>
+<div class="card"><b>① 6艇比較</b><div class="small">平均ST・全国/当地・モーター・展示・進入を横比較</div><div id="racers" class="small">未取得</div></div>
+<div class="card"><b>② 当該コース実績（利用可能な全履歴）</b>
+<div id="historyStatus" class="small">当日データ取得後に集計します</div>
+<div id="courseHistory" class="small"></div></div>
+<div class="card"><b>③ コース特化・決まり手アラート</b><div id="specialAlert" class="small">全履歴集計後に判定します</div></div><div class="card"><b>④ 今節・直近ST / F警戒</b>
+<div id="recentST" class="small">全履歴集計後に判定します</div></div>
+<div class="card"><b>⑤ モーター履歴</b>
+<div id="motorHistory" class="small">全履歴集計後に判定します</div></div>
+<div class="card"><b>⑥ 全艇連動データ</b>
+<div id="linkData" class="small">全履歴集計後に判定します</div></div>
+<div class="card"><b>⑦ 攻め艇・壁判定</b>
+<div id="attackWall" class="small">全履歴集計後に判定します</div></div>
+<div class="card"><b>⑧ ST・1M展開</b><div id="stview" class="small">未取得</div></div>
+<div class="card"><b>⑨ 展示・気象補正</b><div id="exview" class="small">未取得</div></div>
+<div class="card" id="stablePreview"><b>展示後の自動補正（安定版）</b>
+<p class="small">公開APIから取得できる「展示タイム・展示ST・進入・風・波高」を自動反映します。1周タイム・回り足タイムは現在の安定した公開APIに含まれないため、無理に取得せず未取得のまま扱います。</p>
+<div class="sum-actions"><button id="previewRefresh" type="button">直前情報を再取得</button><button id="autoRefresh" type="button">自動更新 ON</button></div>
+<div id="previewStatus" class="small">出走表取得後に自動反映します。</div>
+<div id="previewTable" class="small"></div>
+<details class="small"><summary>SUM理論について</summary>SUM理論の1周＋展示、回り足は、取得元をサーバー側で安定化できるまで予想順位を動かす材料には使いません。展示タイムは伸び寄りの補助、展示STは単発値なので平均STを上書きしません。</details>
+</div>
+<div class="card"><b>⑩ 最終結論</b><div id="info" class="small">未取得</div>
+<div id="decision" class="pick"></div><div id="second" class="small"></div>
+<div class="small">6艇の1着候補を比較し、全3連単120通りを同じ基準で順位付けします。上位12点をA・B・C各4点に表示し、インが負ける出目も順位に応じて入ります。別展開候補は、1着指数首位の艇が勝てない場合の上位4点を表示します（A〜Cと重複あり）。指数は的中確率ではありません。</div>
+<div id="main" class="pick"></div><div id="categoryB" class="pick"></div><div id="categoryC" class="pick"></div><div id="fail" class="pick"></div>
+<div id="cuts" class="small"></div></div></main>
+<script>
+const $=x=>document.getElementById(x),dt=$("date"),st=$("stadium"),rc=$("race");
+let now=new Date();dt.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+function n(v,d=0){if(v===null||v===undefined||v==="")return d;v=Number(v);return Number.isFinite(v)?v:d}
+// Ranking indices are comparisons, not calibrated probabilities.
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+let historyState=null;
+function entryCourse(x){return n(x.p?.course_number,x.i)}
+function validEntry(A){const c=A.map(entryCourse);return A.length===6&&c.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(c).size===6}
+function historyForEntry(A,bank){return A.map(x=>bank[String(x.r.number)]?.byCourse[entryCourse(x)]).filter(Boolean).sort((a,b)=>a.lane-b.lane)}
+function renderCourseHistory(T){
+ $('courseHistory').innerHTML=T.map(t=>{const pc=v=>t.n?(100*v/t.n).toFixed(1)+'%':'—';return `<div class="row"><b>${t.lane}号艇 ${t.name}</b><br>${t.course}コース 母数 <b>${t.n}走</b> / 1着 ${pc(t.p1)} / 2着 ${pc(t.p2)} / 3着 ${pc(t.p3)}<br>コース平均ST ${t.stN?(t.stSum/t.stN).toFixed(3):'—'} / 平均ST順位 ${t.rankN?(t.rankSum/t.rankN).toFixed(2):'—'}</div>`}).join('');
+ $('linkData').innerHTML=T.map(t=>{const total=Object.values(t.winLinks).reduce((a,b)=>a+b,0);return `<div class="row"><b>${t.lane}号艇が${t.course}コース1着時</b>（${total}勝）<br>2着コース：${Object.entries(t.winLinks).map(([c,v])=>c+'コース '+v+'/'+total+'='+ (100*v/total).toFixed(1)+'%').join(' / ')||'データなし'}</div>`}).join('');
+}
+function buildPlaceModel(A,T){
+ const anchor=A.find(x=>entryCourse(x)===1)?.i??1;
+ const inside=T.find(t=>t.lane===anchor), linked=inside?.winLinks||{}, pairs=inside?.secondLinks||{};
+ const linksN=Object.values(linked).reduce((a,b)=>a+b,0);
+ const metrics=A.filter(x=>x.i!==anchor).map(x=>{
+  const h=T.find(t=>t.lane===x.i), count=h?.n||0;
+  const conditionalN=h?.inWinN||0;
+  const linkWeight=linksN>=10?Math.min(.15,linksN/(linksN+40)*.15):0;
+  const conditionWeight=conditionalN>=10?Math.min(.35,conditionalN/(conditionalN+20)*.35):0;
+  const st=h?.stN>=10?h.stSum/h.stN:n(x.r.average_start_timing,NaN);
+  const others=A.filter(y=>y.i!==x.i).map(y=>{const t=T.find(t=>t.lane===y.i);return t?.stN>=10?t.stSum/t.stN:n(y.r.average_start_timing,NaN)}).filter(Number.isFinite);
+  const meanST=others.length?others.reduce((a,b)=>a+b,0)/others.length:NaN;
+  // Small, explicit corrections; class and win rates never supply the base.
+  const stCorrection=Number.isFinite(st)&&Number.isFinite(meanST)?clamp((meanST-st)*40,-2,2):0;
+  const motor=n(x.r.motor_top_2_percent,NaN);
+  const motorCorrection=Number.isFinite(motor)?clamp((motor-35)*.025,-.75,.75):0;
+  const ability=n(x.r.national_win_rate,NaN);
+  const abilityCorrection=Number.isFinite(ability)?clamp((ability-5)*.15,-.5,.5):0;
+  const courseAttack=count?100*(h.makuri+h.makurizashi)/count:0;
+  const winRate=count?100*h.p1/count:0;
+  const sampleWeight=count/(count+20);
+  // Ability matters more when supported by course wins/attacks and sustained ST.
+  // A single exhibition or aggregate motor rate cannot activate this term.
+  const support=count>=10&&stCorrection>0?clamp((winRate+courseAttack)/20,0,1)*sampleWeight:0;
+  const supportedAbility=Number.isFinite(ability)?clamp((ability-6)*3,0,6)*support:0;
+  const correction=clamp(stCorrection+motorCorrection+abilityCorrection,-3,3)+supportedAbility;
+  const base=place=>{
+   const raw=count?100*h['p'+place]/count:null;
+   // Sparse records are uncertain, not evidence of zero ability.
+   // This common fallback is a comparison baseline, never an observed rate.
+   const reliability=count<10?count/(count+12):1;
+   let value=count>=10?100*(h['p'+place]+.5)/(count+3):(raw??0)*reliability+(100/6)*(1-reliability);
+   if(conditionWeight)value=value*(1-conditionWeight)+100*h['inP'+place]/conditionalN*conditionWeight;
+   if(place===2&&linkWeight)value=value*(1-linkWeight)+100*(linked[entryCourse(x)]||0)/linksN*linkWeight;
+   return {raw,value,reliability,score:Math.max(0,value+correction)};
+  };
+  return {...x,h,count,conditionalN,stCorrection,motorCorrection,abilityCorrection,supportedAbility,support,courseAttack,winRate,correction,second:base(2),third:base(3)};
+ });
+ const seconds=[...metrics].sort((a,b)=>(b.second?.score??-1)-(a.second?.score??-1)||b.count-a.count||a.i-b.i);
+ const attackers=metrics.map(x=>{
+  const h=x.h, st=h?.stN?h.stSum/h.stN:NaN;
+  const reliability=x.count<10?x.count/(x.count+12):1;
+  const attack=(h?.n?(100*h.p1/h.n+100*(h.makuri+h.makurizashi)/h.n*.3)*reliability:0)+(Number.isFinite(st)?clamp((.18-st)*40,-2,2):0);
+  return {...x,attack:attack+x.supportedAbility};
+ }).sort((a,b)=>b.attack-a.attack);
+ return {seconds,metrics,attackers,inside,linksN,anchor};
+}
+// All six boats compete for first place before any anchor is selected.
+// Heuristic comparison only: do not present this score as escape probability.
+function buildRaceModel(A,T,placeModel){
+ const anchor=placeModel.anchor;
+ const rows=A.map(x=>{
+  const h=T.find(t=>t.lane===x.i), count=h?.n||0;
+  const st=h?.stN>=10?h.stSum/h.stN:n(x.r.average_start_timing,NaN);
+  const recent=[...(h?.recent||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.race-a.race).slice(0,10).filter(v=>Number.isFinite(v.st));
+  const recentST=recent.length>=5?recent.reduce((a,b)=>a+b.st,0)/recent.length:NaN;
+  const rate=place=>count?100*h['p'+place]/count:null;
+  const value=place=>count>=10?100*(n(h['p'+place])+.5)/(count+3):(rate(place)||0)*count/(count+12)+(100/6)*12/(count+12);
+  return {...x,h,count,st,recentST,winRate:rate(1),firstBase:value(1),secondBase:value(2),thirdBase:value(3),pressure:0,opening:0,reasons:[]};
+ });
+ const validST=rows.filter(x=>Number.isFinite(x.st)), avgST=validST.length?validST.reduce((a,b)=>a+b.st,0)/validST.length:NaN;
+ for(const x of rows){
+  x.stBonus=Number.isFinite(x.st)&&Number.isFinite(avgST)?clamp((avgST-x.st)*100,-5,5):0;
+  x.recentBonus=Number.isFinite(x.recentST)&&Number.isFinite(x.st)?clamp((x.st-x.recentST)*100,-3,3):0;
+  if(x.count)x.reasons.push('1着 '+x.winRate.toFixed(1)+'%（'+n(x.h.p1)+'/'+x.count+'走）');
+  if(Number.isFinite(x.st))x.reasons.push('平均ST '+x.st.toFixed(3));
+  // Check each adjacent ST gap and the challenger's observed winning style.
+  const next=rows.find(y=>entryCourse(y)===entryCourse(x)+1);
+  if(next&&Number.isFinite(x.st)&&Number.isFinite(next.st)&&next.count>=10){
+   const attacks=100*(n(next.h.makuri)+n(next.h.makurizashi))/next.count;
+   if(x.st-next.st>=.025&&attacks>=5){
+    x.pressure=clamp((x.st-next.st)*100+attacks*.15,0,8);
+    next.opening+=x.pressure;
+    x.reasons.push(next.i+'号艇が隣から先行・攻め実績あり');
+   }
+  }
+ }
+ // Direct attackers threaten the inside boat when inner boats fail to form a wall.
+ const inside=rows.find(x=>x.i===anchor);
+ let escapePressure=0;
+ for(const x of rows.filter(x=>entryCourse(x)>=3)){
+  const attackRate=x.count>=10?100*(n(x.h.makuri)+n(x.h.makurizashi))/x.count:0;
+  const inner=rows.filter(y=>entryCourse(y)>1&&entryCourse(y)<entryCourse(x));
+  const gaps=inner.filter(y=>Number.isFinite(y.st)&&Number.isFinite(x.st)&&y.st-x.st>=.025);
+  if(attackRate>=5&&gaps.length){
+   const bonus=clamp(attackRate*.15+gaps.length,0,6);
+   x.opening+=bonus;escapePressure=Math.max(escapePressure,bonus);
+   x.reasons.push('内側'+gaps.map(y=>y.i+'号艇').join('・')+'にST優位、攻め実績あり');
+  }
+ }
+ for(const x of rows){
+  const pressure=x.pressure+(x.i===anchor?escapePressure:0);
+  x.firstScore=Math.max(.1,x.firstBase+x.stBonus+x.recentBonus+x.opening-pressure);
+  x.reasons.push('ST補正 '+x.stBonus.toFixed(2)+' / 直近補正 '+x.recentBonus.toFixed(2)+' / 攻め条件 '+x.opening.toFixed(2)+' / 被攻め −'+pressure.toFixed(2));
+ }
+ const heads=[...rows].sort((a,b)=>b.firstScore-a.firstScore||b.count-a.count||a.i-b.i);
+ const all=[];
+ for(const head of rows){
+  const others=rows.filter(x=>x.i!==head.i);
+  const links=head.h?.winLinks||{}, pairs=head.h?.secondLinks||{};
+  const linkN=Object.values(links).reduce((a,b)=>a+n(b),0), linkWeight=linkN>=10?Math.min(.2,linkN/(linkN+40)*.2):0;
+  const seconds=others.map(x=>{
+   let value=x.secondBase;
+   if(head.i===anchor){const metric=placeModel.metrics.find(y=>y.i===x.i);value=metric.second.score;}
+   else value=value*(1-linkWeight)+100*n(links[entryCourse(x)])/Math.max(1,linkN)*linkWeight;
+   return {...x,value};
+  });
+  const secondTotal=seconds.reduce((sum,x)=>sum+Math.max(0,x.value),0);
+  for(const second of seconds){
+   const thirds=others.filter(x=>x.i!==second.i);
+   const pairN=Object.entries(pairs).filter(([k])=>Number(k.split('-')[0])===entryCourse(second)).reduce((a,[,v])=>a+n(v),0);
+   const weight=pairN>=10?Math.min(.2,pairN/(pairN+30)*.2):0;
+   const thirdValues=thirds.map(third=>{
+    let value=third.thirdBase;
+    if(head.i===anchor)value=placeModel.metrics.find(x=>x.i===third.i).third.score;
+    const linked=100*n(pairs[entryCourse(second)+'-'+entryCourse(third)])/Math.max(1,pairN);
+    value=value*(1-weight)+linked*weight;
+    return {third,value:Math.max(0,value)};
+   });
+   const thirdTotal=thirdValues.reduce((sum,x)=>sum+x.value,0);
+   for(const {third,value} of thirdValues){
+    const secondShare=secondTotal?Math.max(0,second.value)/secondTotal:1/seconds.length;
+    const thirdShare=thirdTotal?value/thirdTotal:1/thirds.length;
+    all.push({pick:head.i+'-'+second.i+'-'+third.i,head:head.i,second:second.i,third:third.i,score:head.firstScore*secondShare*thirdShare});
+   }
+  }
+ }
+
+ all.sort((a,b)=>b.score-a.score||a.pick.localeCompare(b.pick));
+ const lowSample=rows.some(x=>x.count<10);
+ // Always take the global top twelve. No escape flag may filter this list.
+ const mode=lowSample?'母数不足・暫定順位':heads[0].i===anchor?'インが1着指数首位':'他艇が1着指数首位';
+ const selected=all.slice(0,12);
+ return {heads,rows,all,selected,mode,anchor,inside,escapePressure,leadingHead:heads[0].i,categories:{A:selected.slice(0,4),B:selected.slice(4,8),C:selected.slice(8,12)},alternatives:all.filter(x=>x.head!==heads[0].i).slice(0,4)};
+}
+function setPickStatus(message){
+ for(const [id,label] of [['main','カテゴリーA'],['categoryB','カテゴリーB'],['categoryC','カテゴリーC'],['fail','別展開候補']])$(id).textContent=label+'：'+message;
+}
+function renderPlaceModel(A,T){
+ if(!validEntry(A)){$('decision').textContent='判定保留：進入データの重複・欠損があります';setPickStatus('進入確認が必要');$('second').textContent='';return}
+ const model=buildPlaceModel(A,T),{seconds,metrics,inside,anchor}=model;
+ const raceModel=buildRaceModel(A,T,model);
+ const changed=A.some(x=>entryCourse(x)!==x.i);
+ const mismatch=A.some(x=>{const h=T.find(t=>t.lane===x.i);return h&&(h.course??h.lane)!==entryCourse(x)});
+ const lowSample=A.filter(x=>(T.find(t=>t.lane===x.i)?.n||0)<10);
+ const unavailable=!T.some(t=>t.n>0);
+ const missingEntrants=A.length!==6||A.some(x=>!x.r.number);
+ $('info').innerHTML=`${anchor}号艇の1コース1着実績：${inside?.n?(100*inside.p1/inside.n).toFixed(1)+'%（'+inside.p1+'/'+inside.n+'走）':'未取得'}<br>これは過去実績です。今回の推定逃げ率は未算出。<br>進入：${[...A].sort((a,b)=>entryCourse(a)-entryCourse(b)).map(x=>x.i+'号艇→'+entryCourse(x)+'コース').join(' / ')}${changed?'<br>進入変化を反映済み。見送り候補として慎重に判断してください。':''}`;
+ $('decision').textContent=mismatch?'判定保留：実コースの再集計中':unavailable||missingEntrants?'判定保留：履歴または出走者情報が未取得':raceModel.mode+'：1着比較 '+raceModel.heads.map(x=>x.i+'号艇').join(' ＞ ');
+ $('info').innerHTML+='<br><b>6艇の1着候補比較</b>'+raceModel.heads.map(x=>'<div class="row">'+x.i+'号艇：1着指数 '+x.firstScore.toFixed(2)+'<br>'+x.reasons.join(' / ')+'</div>').join('')+'<br>指数は未検証の比較基準であり、逃げ確率ではありません。イン優勢の表示にかかわらず、A〜Cは常に全120通りの上位12点です。1着指数と各頭での2・3着指数、母数を満たした連動データで比較します。今節実戦足・F前後・潮位など未評価の項目があり、購入判断は確定しません。';
+ $('second').innerHTML='参考：'+anchor+'号艇が逃げた場合のみの2着順位：'+seconds.map(x=>x.i+'号艇').join(' ＞ ')+
+ '<br><span class="small">比較指数は的中確率ではありません。展示単発・級別による順位上書きはしません。</span>'+seconds.map(x=>{
+ const h=x.h, v=x.second;return `<div class="row"><b>${x.i}号艇・${entryCourse(x)}コース${x.count<10?'（母数不足・暫定評価）':''}：2着指数 ${v?v.score.toFixed(2):'未算出'} / 3着指数 ${x.third?x.third.score.toFixed(2):'未算出'}</b><br>コース2着 ${v?.raw!=null?v.raw.toFixed(1):'—'}%（${h?.p2||0}/${x.count}走） / 3着 ${x.third?.raw!=null?x.third.raw.toFixed(1):'—'}%（${h?.p3||0}/${x.count}走）<br>自身の当該コース出走・1コース勝利時：2着 ${x.conditionalN?(100*h.inP2/x.conditionalN).toFixed(1):'—'}% / 3着 ${x.conditionalN?(100*h.inP3/x.conditionalN).toFixed(1):'—'}%（${x.conditionalN}走）<br>${x.count<10?'母数不足のため共通の暫定基準を併用（観測確率ではありません）<br>':''}実績・母数・連動による基礎指数 ${v?v.value.toFixed(2):'—'} → 補正 ${x.correction>=0?'+':''}${x.correction.toFixed(2)}（平均ST ${x.stCorrection.toFixed(2)} / モーター集計率 ${x.motorCorrection.toFixed(2)} / 全国勝率 ${x.abilityCorrection.toFixed(2)} / コース勝ち筋・STで裏付けた能力 ${x.supportedAbility.toFixed(2)}）</div>`;
+ }).join('');
+ const attacks=model.attackers;
+ $('attackWall').innerHTML='①逃げ時の2着評価とは別の攻め評価：'+attacks.map(x=>x.i+'号艇').join(' ＞ ')+attacks.map(x=>`<div class="row"><b>${x.i}号艇・攻め指数 ${x.attack.toFixed(2)}</b><br>当該コース1着 ${x.winRate.toFixed(1)}%（${x.h?.p1||0}/${x.count}走） / まくり・まくり差し ${x.courseAttack.toFixed(1)}%<br>平均ST補正 ${x.stCorrection.toFixed(2)} / 裏付けありの能力補正 ${x.supportedAbility.toFixed(2)}</div>`).join('')+'<br>指数は比較用の仮ルールです。内側の抵抗・実戦足・今節内容が未評価のため、逃げ成立率は算出しません。';
+ const cuts=metrics.filter(x=>x.count>=20&&x.second?.raw<5&&x.third?.raw<10&&x.winRate<5&&x.supportedAbility===0);
+ $('cuts').textContent=cuts.length?'2・3着の低実績による除外検討：'+cuts.map(x=>x.i+'号艇').join('・')+'（足・展開による反証は別途確認）':'実績だけで2・3着から除外できる艇なし。下位2艇を機械的に消しません。';
+ if(mismatch||unavailable||missingEntrants){setPickStatus('判定保留');return}
+ for(const [id,key,rank] of [['main','A','1〜4位'],['categoryB','B','5〜8位'],['categoryC','C','9〜12位']]){
+  $(id).textContent='カテゴリー'+key+'（'+'全120通りから'+'・'+rank+'・'+(lowSample.length?'母数不足あり・暫定4点':'4点')+'） '+raceModel.categories[key].map(x=>x.pick).join(' / ');
+ }
+ $('fail').textContent='別展開候補（1着指数首位の'+raceModel.leadingHead+'号艇が勝てない場合・'+(lowSample.length?'母数不足あり・暫定4点':'4点')+'） '+raceModel.alternatives.map(x=>x.pick).join(' / ')+' ※A・B・Cと重複する場合があります';
+}
+
+function ymd2(x){return `${x.getFullYear()}${String(x.getMonth()+1).padStart(2,"0")}${String(x.getDate()).padStart(2,"0")}`}
+async function loadMaxHistory(A){
+ const hs=document.getElementById("historyStatus"), hv=document.getElementById("courseHistory");
+ hs.textContent="2026/1/1〜前日までの利用可能な全結果を集計中…"; hv.innerHTML="";
+ const target={};
+ const queryKey=stableApiURL(), raceNumber=Number(rc.value);
+ A.forEach(x=>{
+  const owner={recent:[],sameMeet:[],byCourse:{}};
+  for(let course=1;course<=6;course++)owner.byCourse[course]={lane:x.i,course,name:x.r.name||'',n:0,p1:0,p2:0,p3:0,stSum:0,stN:0,rankSum:0,rankN:0,sashi:0,makuri:0,makurizashi:0,recent:owner.recent,sameMeet:owner.sameMeet,flying:Number(x.r.flying_count||0),motorNo:Number(x.r.motor_number||0),inWinN:0,inP2:0,inP3:0,winLinks:{},secondLinks:{}};
+  target[String(x.r.number)]=owner;
+ });
+ let end=new Date(dt.value+"T00:00:00"), cur=new Date(2026,0,1), days=[];
+ while(cur<end){days.push(new Date(cur));cur.setDate(cur.getDate()+1)}
+ let pos=0, done=0, fetched=0, failed=0;
+ async function worker(){
+   while(pos<days.length){
+     const day=days[pos++], ds=ymd2(day);
+     try{
+       let r=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:"force-cache"});
+       if(!r.ok){failed++;done++;continue}
+       let j=await r.json(), ss=j?.programs?.stadiums||{};fetched++;
+       for(const sk in ss) for(const rk in (ss[sk]?.races||{})){
+         let rr=ss[sk].races[rk], rs=rr?.result?.racers;if(!rs)continue;
+         let starts=[];
+         for(let e=1;e<=6;e++){let z=rs[String(e)]||rs[e], q=n(z?.start_timing,NaN);if(z&&Number.isFinite(q)&&q>=0&&q<1)starts.push({num:String(z.number),st:q})}
+         starts.sort((a,b)=>a.st-b.st);
+         for(let e=1;e<=6;e++){
+           let z=rs[String(e)]||rs[e];if(!z)continue;
+           let owner=target[String(z.number)]; if(!owner)continue;
+           const qAll=n(z.start_timing,NaN),plAll=Number(z.place_number);
+           if(Number.isFinite(qAll)&&qAll>=0&&qAll<1)owner.recent.push({date:rr.date||ds,race:Number(rk),st:qAll,course:Number(z.course_number),place:plAll});
+           let t=owner.byCourse[Number(z.course_number)];if(!t)continue;
+           t.n++;
+           const winner=Object.values(rs).find(v=>Number(v?.place_number)===1);
+           if(Number(winner?.course_number)===1){t.inWinN++;if(plAll===2)t.inP2++;if(plAll===3)t.inP3++;}
+           let pl=Number(z.place_number); if(pl===1){t.p1++;let tech=Number(rr?.result?.technique_number);if(tech===2)t.sashi++;if(tech===3)t.makuri++;if(tech===4)t.makurizashi++;}if(pl===2)t.p2++;if(pl===3)t.p3++;
+           let q=n(z.start_timing,NaN);if(Number.isFinite(q)&&q>=0&&q<1){t.stSum+=q;t.stN++;let ix=starts.findIndex(v=>v.num===String(z.number)&&v.st===q);if(ix>=0){t.rankSum+=ix+1;t.rankN++}}
+           if(pl===1){
+             let second=null,third=null;
+             for(let ee=1;ee<=6;ee++){let zz=rs[String(ee)]||rs[ee];if(!zz)continue;if(Number(zz.place_number)===2)second=Number(zz.course_number);if(Number(zz.place_number)===3)third=Number(zz.course_number);}
+             if(second)t.winLinks[second]=(t.winLinks[second]||0)+1;
+             if(second&&third){let k=second+"-"+third;t.secondLinks[k]=(t.secondLinks[k]||0)+1;}
+           }
+         }
+       }
+     }catch(e){failed++;}
+     done++; if(done%20===0)hs.textContent=`全履歴集計中… ${done}/${days.length}日`;
+   }
+ }
+ await Promise.all(Array.from({length:10},worker));
+ let T=historyForEntry(A,target);
+ let stadiumNo=Number(document.getElementById("stadium")?.value || A[0]?.race?.stadium_number || 0);
+ let pv=A[0]?.race?.preview || A[0]?.p || {};
+ let vt=document.getElementById("venueTraits");
+ let venueText=venueConditionText(stadiumNo,pv);
+ // Empirical current-data-range venue 1-course rate is not inferred here unless enough race records were explicitly accumulated.
+ vt.innerHTML=venueText+`<br>当日条件：風速 ${pv?.wind_speed??"—"}m/s / 波高 ${pv?.wave_height??"—"}cm`;
+
+ hv.innerHTML=T.map(t=>{
+   let pc=x=>t.n?(100*x/t.n).toFixed(1)+"%":"—", ast=t.stN?(t.stSum/t.stN).toFixed(3):"—", sr=t.rankN?(t.rankSum/t.rankN).toFixed(2):"—";
+   return `<div class="row"><b>${t.lane}号艇 ${t.name}</b><br>${t.course}コース　母数 <b>${t.n}走</b> / 1着 ${pc(t.p1)} / 2着 ${pc(t.p2)} / 3着 ${pc(t.p3)}<br>平均ST ${ast} / 平均ST順位 ${sr}<br>勝ち筋：差し ${pc(t.sashi)} / まくり ${pc(t.makuri)} / まくり差し ${pc(t.makurizashi)}</div>`;
+ }).join("");
+ hs.className=failed?"small":"ok";hs.textContent=`履歴集計：${fetched}/${days.length}日取得・欠損${failed}日。2026/01/01〜前日。表示母数は取得できた結果のみ。`;
+ const alerts=[]; T.filter(t=>t.lane>=2).forEach(t=>[["差し",t.sashi],["まくり",t.makuri],["まくり差し",t.makurizashi]].forEach(([method,wins])=>{const rate=t.n?100*wins/t.n:0;if(t.n>=10&&rate>=30)alerts.push({lv:"⚠️ 強特化",t,method,wins,rate});else if(t.n>=15&&rate>=25)alerts.push({lv:"🔎 特化警戒",t,method,wins,rate});}));alerts.sort((a,b)=>b.rate-a.rate||b.t.n-a.t.n);const sa=document.getElementById("specialAlert");sa.innerHTML=alerts.length?alerts.map(a=>`<div class="row"><b>${a.lv}：${a.t.lane}号艇 ${a.t.name}</b><br>${a.t.lane}コース ${a.method}　${a.wins}/${a.t.n}勝 = <b>${a.rate.toFixed(1)}%</b><br>→ 攻め艇・逃げ崩し候補として重点警戒</div>`).join(""):"今回、母数を満たした25%以上の決まり手特化異常値はありません。";
+ 
+ // Recent / meet ST and F warning
+ const rst=document.getElementById("recentST");
+ rst.innerHTML=T.map(t=>{
+   let rec=[...t.recent].sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.race-a.race).slice(0,10);
+   let meet=[...t.sameMeet].sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.race-a.race).slice(0,8);
+   let av=a=>a.length?(a.reduce((s,x)=>s+x.st,0)/a.length).toFixed(3):"—";
+   let warn=t.flying>0?" ⚠️F"+t.flying:"";
+   return `<div class="row"><b>${t.lane}号艇 ${t.name}${warn}</b><br>直近${rec.length}走ST平均 ${av(rec)} / 今開催STは未集計<br>直近ST：${rec.map(x=>x.st.toFixed(2)).join(" / ")||"—"}</div>`;
+ }).join("");
+
+ // Motor history: scan already loaded historical races for same motor at same stadium when program data exists
+ const motorStats={}; T.forEach(t=>motorStats[t.lane]={n:0,top3:0,top2:0});
+ // Current API exposes motor aggregate percentages reliably; show them with current racer data.
+ A.forEach(x=>{let m=motorStats[x.i];m.rate2=Number(x.r.motor_top_2_percent);m.rate3=Number(x.r.motor_top_3_percent);m.no=x.r.motor_number;});
+ document.getElementById("motorHistory").innerHTML=A.map(x=>{
+   let m=motorStats[x.i];
+   return `<div class="row"><b>${x.i}号艇 ${x.r.name} / ${m.no||"—"}号機</b><br>モーター2連率 ${Number.isFinite(m.rate2)?m.rate2.toFixed(1)+"%":"—"} / 3連率 ${Number.isFinite(m.rate3)?m.rate3.toFixed(1)+"%":"—"}</div>`;
+ }).join("");
+
+ // Link data when each racer wins from today's course
+ document.getElementById("linkData").innerHTML=T.map(t=>{
+   let total=Object.values(t.winLinks).reduce((a,b)=>a+b,0);
+   let arr=Object.entries(t.winLinks).sort((a,b)=>b[1]-a[1]).slice(0,4);
+   return `<div class="row"><b>${t.lane}号艇が${t.course}コース1着時</b>（${total}勝）<br>2着コース：${arr.length?arr.map(([c,n])=>`${c}コース ${n}/${total}=${(100*n/total).toFixed(1)}%`).join(" / "):"データなし"}</div>`;
+ }).join("");
+
+ // Attack/wall score: historical course win rate + ST + technique specialization
+ let aw=T.map(t=>{
+   let win=t.n?t.p1/t.n:0, st=t.stN?t.stSum/t.stN:.30;
+   let attack=(win*100)+Math.max(0,(.22-st)*120)+(t.n?100*Math.max(t.makuri,t.makurizashi)/t.n:0)*.45;
+   return {...t,attack};
+ }).sort((a,b)=>b.attack-a.attack);
+ let attacker=aw.find(x=>x.lane>=2);
+ let wall2=T.find(x=>x.lane===2),wall3=T.find(x=>x.lane===3);
+ let walltxt=[wall2,wall3].filter(Boolean).map(t=>`${t.lane}号艇：1着${t.n?(100*t.p1/t.n).toFixed(1):"—"}% / ST${t.stN?(t.stSum/t.stN).toFixed(3):"—"}`).join("　");
+ document.getElementById("attackWall").innerHTML=`<b>攻め艇候補：${attacker?attacker.lane+"号艇 "+attacker.name:"—"}</b><br>②③壁比較：${walltxt}<br>※当該コース母数・平均ST・まくり/まくり差し実績から算出`;
+
+ // Weather / preview details
+ try{
+   let pv=A[0]?.race?.preview||null;
+   if(pv){
+     document.getElementById("exview").innerHTML += `<br>風速 ${pv.wind_speed??"—"}m/s / 波高 ${pv.wave_height??"—"}cm / 気温 ${pv.air_temperature??"—"}℃ / 水温 ${pv.water_temperature??"—"}℃`;
+   }
+ }catch(e){}
+
+ if(queryKey!==stableApiURL()||raceNumber!==Number(rc.value))return;
+ historyState={key:queryKey,race:raceNumber,T,bank:target};
+ renderCourseHistory(T);
+ renderPlaceModel(A,T);
+}
+
+
+const VENUE_TRAITS={
+1:["桐生","淡水のプール水面。冬季は赤城おろしの強風に注意。"],
+2:["戸田","全国有数のインが弱い水面。コース幅が狭く、センター・ダッシュのまくりに注意。"],
+3:["江戸川","河川水面。潮流と風の組み合わせで荒れやすく、水面対応力を重視。"],
+4:["平和島","海水。イン絶対ではなくセンター勢の攻めも警戒。"],
+5:["多摩川","淡水で比較的静水面。スピード戦になりやすい。"],
+6:["浜名湖","広い汽水水面。風の影響を受けやすく、季節風に注意。"],
+7:["蒲郡","ナイター中心のプール型水面。比較的走りやすいが風向変化を確認。"],
+8:["常滑","海水。伊勢湾からの風の影響を受けやすい。"],
+9:["津","海水。季節風が強い日は波・安定板を要確認。"],
+10:["三国","淡水。冬季の強風・波立ちに注意。"],
+11:["びわこ","淡水。標高が高く、風・うねりの影響でセンター攻めが効く場面に注意。"],
+12:["住之江","淡水プール。イン優勢傾向が強い代表的水面。"],
+13:["尼崎","淡水プール。比較的静水面でイン中心になりやすい。"],
+14:["鳴門","海水。潮位・潮流と風の影響を確認。"],
+15:["丸亀","海水ナイター。潮位差と風の影響を受ける。"],
+16:["児島","海水。潮位差が大きく、満干潮による水面変化に注意。"],
+17:["宮島","海水。潮位差が大きく、満潮前後は水面変化に注意。"],
+18:["徳山","海水。イン優勢傾向が強い場。潮位と風も確認。"],
+19:["下関","海水ナイター。イン優勢傾向。潮・風による変化を確認。"],
+20:["若松","海水ナイター。潮位差と風の影響を受ける。"],
+21:["芦屋","淡水。比較的イン優勢。風が強い日はセンター攻めも再評価。"],
+22:["福岡","汽水。1Mが那珂川河口にあり満潮時は難水面。北寄りの風でうねり注意、センターまくりも効きやすい。"],
+23:["唐津","淡水。比較的広い水面でイン優勢傾向。風向・風速を確認。"],
+24:["大村","海水。全国でもイン優勢傾向が強い代表的水面。"]
+};
+function venueConditionText(stadiumNo,pv){
+ const v=VENUE_TRAITS[stadiumNo]||["不明","場特性データなし"];
+ let w=Number(pv?.wind_speed), wave=Number(pv?.wave_height), dir=String(pv?.wind_direction||pv?.wind_direction_number||"");
+ let notes=[];
+ if(Number.isFinite(w)&&w>=5)notes.push(`⚠️ 風速${w}m/s：強風補正が必要`);
+ if(Number.isFinite(wave)&&wave>=5)notes.push(`⚠️ 波高${wave}cm：水面悪化を警戒`);
+ if(stadiumNo===22){notes.push("⚠️ 福岡：満潮・北寄りの風では1Mのうねりを重点警戒");}
+ if(stadiumNo===3){notes.push("⚠️ 江戸川：潮流×風向で水面が大きく変化");}
+ if(stadiumNo===2){notes.push("⚠️ 戸田：イン過信禁止。3・4コースの攻撃力を重点確認");}
+ return `<b>${v[0]}</b><br>${v[1]}<br>${notes.join("<br>")}`;
+}
+
+async function run(){
+ if($("go").disabled)return;
+ [dt,st,rc,$("go")].forEach(el=>el.disabled=true);
+ historyState=null; currentRace=null;['main','categoryB','categoryC','fail','second','decision','info','cuts'].forEach(id=>$(id).textContent='');if(autoTimer)clearInterval(autoTimer);
+ let status=$("status");status.className="small";status.textContent="取得中…";$("racers").innerHTML="";$("main").textContent="";$("fail").textContent="";
+ try{
+  let ds=dt.value.replaceAll("-",""), url=`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`;
+  let res=await fetch(url,{cache:"no-store"});if(!res.ok)throw Error("API "+res.status);
+  let data=await res.json(), rr=data?.programs?.stadiums?.[String(st.value)]?.races?.[String(rc.value)];
+  if(!rr)throw Error("このレースのデータがありません");
+  let A=[];
+  for(let i=1;i<=6;i++){let r=rr.racers?.[String(i)]||{},p=rr.preview?.racers?.[String(i)]||{};A.push({i,r,p,race:rr});
+   $("racers").innerHTML+=`<div class="row"><b>${i}号艇 ${r.name||"—"}</b><br>平均ST ${r.average_start_timing??"—"} / 全国勝率 ${r.national_win_rate??"—"} / 当地 ${r.local_win_rate??"—"} / モーター2連 ${r.motor_top_2_percent??"—"}%<br>展示ST ${p.start_timing??"—"} / 展示 ${p.exhibition_time??"—"} / 進入 ${p.course_number??"—"}</div>`;
+  }
+  let stOrder=[...A].sort((x,y)=>n(x.r.average_start_timing,.30)-n(y.r.average_start_timing,.30));
+  let exA=A.map(x=>({i:x.i,st:n(x.p.start_timing,9),et:n(x.p.exhibition_time,99),course:n(x.p.course_number,x.i)}));
+  let exValid=exA.filter(x=>x.st<1), etValid=exA.filter(x=>x.et<90);
+  let exST=exValid.length?[...exValid].sort((x,y)=>x.st-y.st):[], exET=etValid.length?[...etValid].sort((x,y)=>x.et-y.et):[];
+  let changed=exA.some(x=>x.course!==x.i);
+  $("stview").innerHTML=`平均ST順：${stOrder.map(x=>x.i+"号艇("+((x.r.average_start_timing??"—"))+")").join(" → ")}<br>攻め候補は当該コース履歴集計後に判定`;
+  $("exview").innerHTML=exST.length?`展示ST順：${exST.map(x=>x.i+"号艇 "+x.st).join(" / ")}<br>展示T最速：${exET.length?exET[0].i+"号艇 "+exET[0].et:"未取得"}<br>${changed?"進入変化あり":"進入変化なし"}`:"直前情報は未公開。展示前評価を維持。";
+  $('info').textContent='履歴集計中。最終判定は当該コースの実績取得後に表示します。';
+  $('decision').textContent='判定保留';
+  ['second','main','categoryB','categoryC','fail','cuts'].forEach(id=>$(id).textContent='');
+  status.textContent="当日データ分析完了。全履歴を追加集計中…";
+  await loadMaxHistory(A);
+  currentRace={rr,A}; renderStablePreview(rr,A); startAutoRefresh(); status.textContent="取得済み履歴を最終判定に反映しました";
+ }catch(e){status.className="err";status.textContent="取得失敗："+e.message}finally{[dt,st,rc,$("go")].forEach(el=>el.disabled=false)}
+}
+let currentRace=null, autoTimer=null, autoOn=true;
+function stableApiURL(){let ds=dt.value.replaceAll("-","");return `https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`}
+function renderStablePreview(rr,A){
+ const ps=$("previewStatus"), tb=$("previewTable"), pv=rr?.preview||{};
+ const rows=A.map(x=>({i:x.i,avg:n(x.r.average_start_timing,.30),st:n(x.p.start_timing,9),et:n(x.p.exhibition_time,99),course:n(x.p.course_number,x.i)}));
+ const ex=rows.filter(x=>x.et<90).sort((a,b)=>a.et-b.et), stx=rows.filter(x=>x.st<1).sort((a,b)=>a.st-b.st), changed=rows.some(x=>x.course!==x.i);
+ ps.className=ex.length?"ok":"small";
+ ps.innerHTML=ex.length?`展示データ取得済み / ${changed?"<b>進入変化あり</b>":"進入変化なし"} / 風 ${pv.wind_speed??"—"}m / 波 ${pv.wave_height??"—"}cm`:'展示はまだ未公開です。自動更新で公開後に反映します。';
+ tb.innerHTML=rows.map(x=>`<div class="row"><b>${x.i}号艇</b>　平均ST ${x.avg<.9?x.avg.toFixed(2):"—"} / 展示ST ${x.st<1?x.st.toFixed(2):"—"} / 展示T ${x.et<90?x.et.toFixed(2):"—"} / 進入 ${x.course}</div>`).join('');
+ if(ex.length){
+   $("exview").innerHTML=`展示T順（伸び参考）：${ex.map(x=>x.i+"号艇 "+x.et.toFixed(2)).join(" / ")}<br>展示ST順（単発・補助）：${stx.map(x=>x.i+"号艇 "+x.st.toFixed(2)).join(" / ")}<br>${changed?"進入変化あり：取得履歴を実コースで再集計":"進入変化なし"}<br>風速 ${pv.wind_speed??"—"}m/s / 波高 ${pv.wave_height??"—"}cm`;
+ }
+}
+async function refreshPreview(silent=false){
+ if(!currentRace&&!silent){$("previewStatus").textContent="先にデータ取得・予想を押してください";return}
+ if(!silent){$("previewStatus").textContent="直前情報を更新中…";$("previewRefresh").disabled=true}
+ try{
+   let r=await fetch(stableApiURL()+`?t=${Date.now()}`,{cache:"no-store"}); if(!r.ok)throw Error("API "+r.status);
+   let d=await r.json(), rr=d?.programs?.stadiums?.[String(st.value)]?.races?.[String(rc.value)]; if(!rr)throw Error("レースデータなし");
+   let A=[]; for(let i=1;i<=6;i++){let racer=rr.racers?.[String(i)]||{},p=rr.preview?.racers?.[String(i)]||{}; A.push({i,r:racer,p,race:rr})}
+   currentRace={rr,A}; renderStablePreview(rr,A);
+   if(historyState?.key===stableApiURL()&&historyState?.race===Number(rc.value)){
+    historyState.T=historyForEntry(A,historyState.bank);
+    renderCourseHistory(historyState.T);renderPlaceModel(A,historyState.T);
+   }
+ }catch(e){if(!silent){$("previewStatus").className="err";$("previewStatus").textContent="更新失敗："+e.message}}
+ finally{if(!silent)$("previewRefresh").disabled=false}
+}
+function startAutoRefresh(){if(autoTimer)clearInterval(autoTimer); if(autoOn)autoTimer=setInterval(()=>refreshPreview(true),30000)}
+$("previewRefresh").addEventListener("click",()=>refreshPreview(false));
+$("autoRefresh").addEventListener("click",()=>{autoOn=!autoOn;$("autoRefresh").textContent=`自動更新 ${autoOn?"ON":"OFF"}`;startAutoRefresh()});
+[dt,st,rc].forEach(el=>el.addEventListener("change",()=>{currentRace=null;historyState=null;['main','categoryB','categoryC','fail','second','decision','info','cuts'].forEach(id=>$(id).textContent='');if(autoTimer)clearInterval(autoTimer);$("previewStatus").textContent="レース変更後はデータ取得・予想を押してください";$("previewTable").innerHTML="";}));
+
+$("go").addEventListener("click",run);
+</script></body></html>
