@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WATER RACE SELECTOR</title>
+<style>
+:root{--bg:#07111f;--card:#0d1b2e;--line:#24344d;--text:#eef5ff;--muted:#9fb0c8;--good:#4ade80;--warn:#facc15;--bad:#fb7185;--accent:#60a5fa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{padding:20px 16px;background:#0a1627;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+h1{font-size:22px;margin:0 0 4px}.sub{color:var(--muted);font-size:12px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:end}.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+input,button{border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:#111f33;color:var(--text)}
+button{background:#1769aa;font-weight:700;cursor:pointer}.secondary{background:#17263a}.wrap{max-width:1250px;margin:auto;padding:14px}
+.status{padding:12px;border:1px solid var(--line);background:#0b1728;border-radius:10px;margin-bottom:12px;color:var(--muted)}
+.race{border:1px solid var(--line);background:var(--card);border-radius:14px;margin:12px 0;overflow:hidden}
+.rhead{display:flex;justify-content:space-between;gap:10px;padding:13px 14px;border-bottom:1px solid var(--line);align-items:center}.rtitle{font-size:18px;font-weight:800}
+.tags{display:flex;gap:6px;flex-wrap:wrap}.tag{font-size:11px;padding:4px 7px;border-radius:999px;background:#17263a}.tag.good{color:var(--good)}.tag.warn{color:var(--warn)}.tag.bad{color:var(--bad)}
+.scroll{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1020px}th,td{padding:8px 7px;border-bottom:1px solid #1d2b40;text-align:center;font-size:12px}th{color:var(--muted);background:#0a1627}
+.boat{font-weight:900;font-size:16px}.b1{color:#fff}.b2{color:#111;background:#eee}.b3{color:#111;background:#ef4444}.b4{color:#111;background:#60a5fa}.b5{color:#111;background:#facc15}.b6{color:#111;background:#4ade80}
+.hot{color:var(--good);font-weight:800}.cold{color:var(--bad);font-weight:800}.f{color:var(--bad);font-weight:900}.session{white-space:nowrap;text-align:left}.note{padding:10px 14px;color:var(--muted);font-size:11px}
+.empty{text-align:center;padding:30px;color:var(--muted)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:#0d1b2e;border:1px solid var(--line);border-radius:12px;padding:11px}
+.stat .k{font-size:11px;color:var(--muted)}.stat .v{font-size:20px;font-weight:900;margin-top:4px}
+.resultline{padding:9px 14px;border-bottom:1px solid var(--line);font-weight:800;display:flex;gap:10px;flex-wrap:wrap}
+.resultline.inwin{background:rgba(74,222,128,.08)}.resultline.inlose{background:rgba(251,113,133,.08)}
+.midpay{color:var(--warn)}.manpay{color:#fb923c}.pending{color:var(--muted);font-weight:500}
+.points{padding:12px 14px;border:1px solid var(--line);background:#0b1728;border-radius:12px;margin-bottom:12px}
+.points b{color:var(--accent)}
+</style></head>
+<body>
+<header><h1>WATER RACE SELECTOR <small style="font-size:12px;color:#60a5fa">v0.2</small></h1>
+<div class="sub">低〜中勝率の「①頭・相手混戦型」を素早く探すレース選定専用ツール</div>
+<div class="controls">
+<label class="field">日付<input id="date" type="date"></label>
+<label class="field">最高全国勝率<input id="maxRate" type="number" value="6.00" min="3" max="9" step=".05"></label>
+<label class="field">条件該当艇数<input id="minBoats" type="number" value="6" min="1" max="6"></label>
+<button id="search">候補レースを検索</button><button class="secondary" id="today">今日</button><button class="secondary" id="tomorrow">明日</button>
+</div></header>
+<main class="wrap">
+<div id="status" class="status">日付を選んで「候補レースを検索」を押してください。</div>
+<div id="summary"></div><div id="points"></div><div id="results"></div>
+</main>
+<script>
+const ROOT='https://boatracecsv.github.io/data/programs/';
+const VENUES={'01':'桐生','02':'戸田','03':'江戸川','04':'平和島','05':'多摩川','06':'浜名湖','07':'蒲郡','08':'常滑','09':'津','10':'三国','11':'びわこ','12':'住之江','13':'尼崎','14':'鳴門','15':'丸亀','16':'児島','17':'宮島','18':'徳山','19':'下関','20':'若松','21':'芦屋','22':'福岡','23':'唐津','24':'大村'};
+const $=s=>document.querySelector(s);
+function jstDate(off=0){const d=new Date(Date.now()+9*3600000+off*86400000);return d.toISOString().slice(0,10)}
+$('#date').value=jstDate(); $('#today').onclick=()=>$('#date').value=jstDate(); $('#tomorrow').onclick=()=>$('#date').value=jstDate(1);
+function csvParse(text){
+ const rows=[];let row=[],cell='',q=false;
+ for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];
+  if(q){if(c=='"'&&n=='"'){cell+='"';i++}else if(c=='"')q=false;else cell+=c}
+  else if(c=='"')q=true; else if(c==','){row.push(cell);cell=''} else if(c=='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell=''} else cell+=c}
+ if(cell||row.length){row.push(cell);rows.push(row)}
+ const h=rows.shift()||[];return rows.filter(r=>r.length>2).map(r=>Object.fromEntries(h.map((x,i)=>[x,r[i]??''])))
+}
+async function getCsv(kind,date){
+ const [y,m,d]=date.split('-');
+ let u;
+ if(kind==='results') u=`https://boatracecsv.github.io/data/results/realtime/${y}/${m}/${d}.csv`;
+ else if(kind==='payouts') u=`https://boatracecsv.github.io/data/results/payouts/${y}/${m}/${d}.csv`;
+ else u=`${ROOT}${kind}/${y}/${m}/${d}.csv`;
+ const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error(`${kind} ${r.status}`);return csvParse(await r.text())
+}
+function num(v){const n=parseFloat(v);return Number.isFinite(n)?n:null}
+function fmt(v,d=2){const n=num(v);return n===null?'—':n.toFixed(d)}
+function motorClass(r,n){
+ const p=num(r[`艇${n}_モーター2連対率`]); if(p===null)return ['—',''];
+ if(p>=40)return ['◎','hot']; if(p>=35)return ['○','hot']; if(p<25)return ['×','cold']; if(p<30)return ['△','cold']; return ['－',''];
+}
+function session(r,n){
+ let a=[];for(let d=1;d<=7;d++)for(let s=1;s<=2;s++){const pre=`艇${n}_節D${d}走${s}_`;const st=r[pre+'ST'],fin=r[pre+'着順'];if(fin){const c=r[pre+'進入']||r[pre+'枠']||'?';a.push(`${c}C ${st||''}→${fin}`)}}
+ return a.length?a.join(' / '):'初日・実績なし';
+}
+function raceTags(r){
+ const rates=[1,2,3,4,5,6].map(n=>num(r[`艇${n}_全国勝率`])).filter(x=>x!==null);
+ const sts=[1,2,3,4,5,6].map(n=>num(r[`艇${n}_全国平均ST`])).filter(x=>x!==null);
+ const fs=[1,2,3,4,5,6].filter(n=>(num(r[`艇${n}_F本数`])||0)>0);
+ const spread=rates.length?Math.max(...rates)-Math.min(...rates):99; let t=[];
+ if(spread<=1)t.push(['勝率横並び','good']); else if(spread<=1.5)t.push(['勝率差 小','good']);
+ if(fs.length)t.push([`F持ち ${fs.join('・')}号艇`,'warn']);
+ if(sts.length && Math.max(...sts)-Math.min(...sts)>=.05)t.push(['ST差あり','warn']);
+ return t;
+}
+function render(rows,waku,results,payouts){
+ const wm=new Map((waku||[]).map(x=>[x['レースコード'],x]));
+ const rm=new Map((results||[]).map(x=>[x['レースコード'],x]));
+ const pm=new Map((payouts||[]).map(x=>[x['レースコード'],x]));
+ let html='';
+ rows.forEach(r=>{
+  const w=wm.get(r['レースコード'])||{}; const venue=VENUES[String(r['レース場コード']).padStart(2,'0')]||r['レース場コード'];
+  const tags=raceTags(r).map(x=>`<span class="tag ${x[1]}">${x[0]}</span>`).join('');
+  const rr=rm.get(r['レースコード']), pp=pm.get(r['レースコード']);
+  let resultHtml='<div class="resultline"><span class="pending">結果待ち</span></div>';
+  if(rr||pp){
+    const combo=pp?.['3連単_組番'] || (rr ? `${rr['1着_艇番']||'?'}-${rr['2着_艇番']||'?'}-${rr['3着_艇番']||'?'}` : '—');
+    const pay=num(pp?.['3連単_払戻金']), pop=pp?.['3連単_人気']||'—', kim=rr?.['決まり手']||'—';
+    const cls=String(combo).startsWith('1-')?'inwin':'inlose';
+    const pc=pay>=10000?'manpay':(pay>=2000&&pay<6000?'midpay':'');
+    resultHtml=`<div class="resultline ${cls}"><span>結果 ${combo}</span><span class="${pc}">3連単 ${pay===null?'—':pay.toLocaleString()}円</span><span>${pop}人気</span><span>決まり手 ${kim}</span></div>`;
+  }
+  html+=`<section class="race"><div class="rhead"><div class="rtitle">${venue} ${r['レース回']}R</div><div class="tags">${tags}</div></div>${resultHtml}<div class="scroll"><table>
+  <thead><tr><th>艇</th><th>選手</th><th>級</th><th>全国勝率</th><th>全国ST</th><th>同枠ST</th><th>同枠ST順</th><th>F</th><th>モーター</th><th>2連率</th><th>評価</th><th>今節（進入/ST→着）</th></tr></thead><tbody>`;
+  for(let n=1;n<=6;n++){const mc=motorClass(r,n),f=num(r[`艇${n}_F本数`])||0;
+   html+=`<tr><td><span class="boat b${n}">${n}</span></td><td>${r[`艇${n}_選手名`]||'—'}</td><td>${r[`艇${n}_級別`]||'—'}</td>
+   <td>${fmt(r[`艇${n}_全国勝率`])}</td><td>${fmt(r[`艇${n}_全国平均ST`])}</td><td>${fmt(w[`艇${n}_枠番別平均ST`])}</td><td>${fmt(w[`艇${n}_枠番別平均スタート順`],1)}</td>
+   <td class="${f?'f':''}">${f?`F${f}`:'—'}</td><td>${r[`艇${n}_モーター番号`]||'—'}</td><td>${fmt(r[`艇${n}_モーター2連対率`],1)}%</td><td class="${mc[1]}">${mc[0]}</td><td class="session">${session(r,n)}</td></tr>`}
+  html+=`</tbody></table></div><div class="note">モーター評価 v0.1：2連率40%以上=◎ / 35%以上=○ / 30〜35%=－ / 25〜30%=△ / 25%未満=×。次版で場内順位・直近使用履歴による補正を追加予定。</div></section>`;
+ }); $('#results').innerHTML=html||'<div class="empty">条件に合うレースはありません。</div>';
+}
+function median(a){if(!a.length)return null;const b=[...a].sort((x,y)=>x-y),m=Math.floor(b.length/2);return b.length%2?b[m]:(b[m-1]+b[m])/2}
+function renderSummary(cand,results,payouts){
+ const rm=new Map((results||[]).map(x=>[x['レースコード'],x]));
+ const pm=new Map((payouts||[]).map(x=>[x['レースコード'],x]));
+ const done=cand.filter(r=>pm.has(r['レースコード']));
+ const pays=done.map(r=>num(pm.get(r['レースコード'])?.['3連単_払戻金'])).filter(x=>x!==null);
+ const inwins=done.filter(r=>String(pm.get(r['レースコード'])?.['3連単_組番']||'').startsWith('1-')).length;
+ const mid=pays.filter(x=>x>=2000&&x<6000).length, man=pays.filter(x=>x>=10000).length;
+ const avg=pays.length?pays.reduce((a,b)=>a+b,0)/pays.length:null, med=median(pays);
+ const pct=(n,d)=>d?`${(100*n/d).toFixed(1)}%`:'—';
+ const yen=x=>x===null?'—':`${Math.round(x).toLocaleString()}円`;
+ $('#summary').innerHTML=`<div class="summary">
+ <div class="stat"><div class="k">抽出候補</div><div class="v">${cand.length}R</div></div>
+ <div class="stat"><div class="k">結果確定</div><div class="v">${done.length}R</div></div>
+ <div class="stat"><div class="k">①頭率</div><div class="v">${pct(inwins,done.length)}</div></div>
+ <div class="stat"><div class="k">平均3連単</div><div class="v">${yen(avg)}</div></div>
+ <div class="stat"><div class="k">中央値</div><div class="v">${yen(med)}</div></div>
+ <div class="stat"><div class="k">20〜60倍</div><div class="v">${mid}R <small>${pct(mid,pays.length)}</small></div></div>
+ <div class="stat"><div class="k">万舟</div><div class="v">${man}R <small>${pct(man,pays.length)}</small></div></div>
+ </div>`;
+ if(avg!==null){
+   const pts=[6,8,10,12].map(n=>({n,hit:100*(n*100)/avg}));
+   $('#points').innerHTML=`<div class="points"><b>平均配当ベースの損益分岐的中率</b><br>${pts.map(x=>`${x.n}点買い：約${x.hit.toFixed(1)}%`).join('　')}<br><small>各買い目100円・的中時に当日の候補平均配当を受け取る単純比較。実際の買い目別オッズや払戻均等配分とは別です。</small></div>`;
+ }else $('#points').innerHTML='';
+}
+$('#search').onclick=async()=>{
+ const date=$('#date').value,maxRate=num($('#maxRate').value)??6,minBoats=parseInt($('#minBoats').value)||6;
+ $('#status').textContent='データ取得中…';$('#results').innerHTML='';
+ try{
+  const [cards,waku,results,payouts]=await Promise.all([
+   getCsv('race_cards',date),
+   getCsv('waku10',date).catch(()=>[]),
+   getCsv('results',date).catch(()=>[]),
+   getCsv('payouts',date).catch(()=>[])
+  ]);
+  const cand=cards.filter(r=>{let ok=0;for(let n=1;n<=6;n++){const x=num(r[`艇${n}_全国勝率`]);if(x!==null&&x<=maxRate)ok++}return ok>=minBoats});
+  cand.sort((a,b)=>String(a['レース場コード']||'').localeCompare(String(b['レース場コード']||'')) || ((num(a['レース回'])||0)-(num(b['レース回'])||0)));
+  $('#status').innerHTML=`${date}：全 ${cards.length}R から <b>${cand.length}R</b> を抽出（全国勝率 ${maxRate.toFixed(2)} 以下が ${minBoats}艇以上）。`;
+  renderSummary(cand,results,payouts); render(cand,waku,results,payouts);
+ }catch(e){$('#status').innerHTML=`<span style="color:#fb7185">この日付の詳細データを取得できませんでした。</span> ${e.message}<br><small>翌日分は公開CSVの生成前だと未取得になります。前夜取得経路は次版で追加します。</small>`}
+};
+</script></body></html>
