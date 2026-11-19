@@ -1,0 +1,2251 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><title>WATER 12.1 イン逃げ率データ診断（研究）</title><style>
+:root{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN',sans-serif;color:#182538;background:#f2f5f9}*{box-sizing:border-box}body{margin:0}header{background:#102b49;color:white;padding:22px 16px}h1{margin:3px 0;font-size:24px}h2{font-size:18px;margin:0 0 12px}.tag{font-size:11px;letter-spacing:.1em;color:#9cd2f9;font-weight:700}main{max-width:820px;margin:auto;padding:12px 12px 55px}.card{background:white;border-radius:14px;padding:15px;margin:12px 0;box-shadow:0 1px 4px #152a4012}p{line-height:1.6}small,.muted{color:#657386}label{display:block;font-size:13px;font-weight:700;margin:9px 0 5px}input,select,button{font:inherit;min-height:43px;border-radius:9px}input,select{width:100%;border:1px solid #cbd5e1;padding:9px;background:white}button{border:0;background:#1767bd;color:white;padding:10px 13px;font-weight:700;cursor:pointer}button.secondary{background:#e8f0fa;color:#164a82}button.danger{background:#fff1f1;color:#aa3030}button:disabled{opacity:.45}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.row button{flex:0 0 auto}.hint{background:#eaf3ff;border-left:4px solid #2374c7;padding:10px;font-size:13px;line-height:1.6;border-radius:5px}.warn{background:#fff5e5;border-left:4px solid #e6a43c;padding:10px;font-size:13px;line-height:1.6;border-radius:5px}.pill{display:inline-block;background:#eaf3ff;color:#205a9c;border-radius:99px;padding:4px 9px;font-size:12px;font-weight:700}.pill.green{background:#e4f6e9;color:#126b38}.pill.gray{background:#edf0f4;color:#596474}.race{border:1px solid #dce4ee;border-radius:12px;padding:12px;margin:10px 0}.race strong{font-size:17px}.race .sub{font-size:12px;color:#64748b;margin:4px 0 9px}.metric{display:flex;justify-content:space-between;gap:10px;margin:7px 0;font-size:14px}.metric b{white-space:nowrap}.bar{height:9px;background:#e7edf5;border-radius:9px;overflow:hidden}.bar>span{display:block;height:100%;background:#2b77c3}.venue-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.venue-grid label{margin:0;font-size:12px;font-weight:500;border:1px solid #e1e7ef;border-radius:7px;padding:7px 3px;text-align:center}.venue-grid input{width:auto;min-height:0;margin-right:2px}details{margin-top:10px}summary{font-weight:700;cursor:pointer;padding:7px 0}.score{font-size:26px;font-weight:800;color:#155ca4}.status{font-size:12px;color:#64748b}.footer{text-align:center;font-size:12px;color:#66768b;padding:20px}#notice{min-height:16px;color:#14623b;font-size:13px} .metric{min-width:0;flex-wrap:wrap}.metric span{min-width:0;flex:1 1 180px;overflow-wrap:anywhere}.metric b{white-space:normal;overflow-wrap:anywhere;text-align:right;flex:0 1 auto}.race{min-width:0;overflow-wrap:anywhere} @media(max-width:370px){.venue-grid{grid-template-columns:repeat(3,1fr)}}
+</style></head><body><header><div class="tag">WATER 12.7 · 検証操作整理版</div><h1>集中分析・候補比較</h1><div style="font-size:13px;color:#d2e6ff">前夜選別 → 10レース比較 → 購入価値の判定</div></header><main>
+<div class="warn">これは<strong>確率モデルの試験版</strong>です。補正には対象レースより前の履歴だけを使います。過去の出走表の時点確認ができていないため、参考値・購入判断不可です。</div>
+<section class="card"><h2>① 日付と競艇場</h2><div class="row"><input type="date" id="day"><button class="secondary" id="tomorrow">翌日に設定</button></div><details><summary>対象競艇場を設定（除外・変更）</summary><div class="venue-grid" id="venues"></div><div class="row" style="margin-top:10px"><button class="secondary" id="all">全選択</button><button class="secondary" id="defaults">推奨設定</button></div></details></section>
+<section class="card"><h2>①-補正 1号艇1着・2着確率の統合（試験版）</h2><p class="muted" style="font-size:13px">対象日の直前4日間から1号艇1着確率と、1号艇1着時の2着艇別確率を補正します。3着の条件付き配分は維持し、3連単120通りの合計を100%に保ちます。補正前の予想は維持します。出走表の時点未確認につき参考表示です。</p><button id="fitLive" class="secondary" style="width:100%">対象日より前の4日で1着・2着の統合補正を計算</button><p id="fitStatus" class="muted" role="status">未計算（補正前を表示）</p><div id="fitAudit"></div></section><section class="card"><h2>② 実際の出走表を取得・自動選別</h2><p class="muted" style="font-size:13px">選択した日付の公開データを読み込み、1号艇の全国勝率・平均ST・相手との能力差・モーター2連対率から候補を並べます。これは<strong>暫定の選別点</strong>で、的中確率ではありません。</p><button id="fetchSchedule" style="width:100%">出走表を取得して候補を探す</button><p id="fetchStatus" class="muted" role="status">未取得</p><div id="scheduleResults"></div></section><section class="card"><h2>③ 6艇の展開モデル・補正前後の比較（試験版）</h2><p class="muted" style="font-size:13px">同じ出走表から補正前・1着補正後・統合補正後を同時に計算し、2着と3連単の変化を表示します。120通りの整合性も自動確認します。実際の的中確率ではありません。</p><div id="probResults"><p class="muted">出走表を取得すると表示します。</p></div></section><section class="card"><h2>④ 候補レースを登録</h2><div class="grid"><div><label for="place">競艇場</label><select id="place"></select></div><div><label for="number">レース番号</label><select id="number"></select></div></div><div class="grid"><div><label for="origin">選別した人</label><select id="origin"><option value="user">自分</option><option value="system">システム（手動記録）</option><option value="both">自分＋システム</option></select></div><div style="display:flex;align-items:end"><button id="add" style="width:100%">候補に追加</button></div></div><p class="muted" style="font-size:12px">上の出走表から自動選別された候補を登録できます。手動登録も可能です。候補は最大10レースです。</p><div id="notice" role="status"></div></section>
+<section class="card" id="autoCompareCard"><h2>⑤ 登録候補を自動比較（試験版）</h2><p class="muted" style="font-size:13px">登録済みの最大10レースを、取得した6艇の出走表から自動計算します。順位は補正適用時は補正後の1号艇1着配分による参考順位で、期待値・購入推奨ではありません。</p><div id="autoCompare"></div></section>
+<section class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">⑥ 候補を詳細評価（任意）</h2><span class="pill" id="count">0 / 10</span></div><p class="muted" style="font-size:12px">手動で今節・展示などの評価を残したい場合のみ入力してください。自動比較には手入力は不要です。</p><div id="items"></div></section>
+<section class="card"><h2>⑦ 手動評価の比較・購入判断</h2><div class="hint">暫定ルール：イン逃げの基礎条件、平均ST、選手差、モーター、今節、展示を重み付き評価。合成オッズ2.5倍以上を条件にします。ただし<strong>評価点から期待回収率は計算しません</strong>。確率モデルと過去検証が完成するまで購入推奨は出しません。</div><div id="ranking"></div></section>
+<section class="card"><h2>⑦ 公開データの形式診断（オフライン）</h2>
+<p class="muted">公開APIから取得したJSONを読み込み、出走表・結果データの項目がアプリの想定と一致するかを確認します。読み込んだファイルは外部送信しません。</p>
+<input id="inspectJson" type="file" accept=".json,application/json" style="width:100%">
+<div id="inspectResult" role="status"></div></section>
+<section class="card"><h2>⑧ 計算エンジンの動作診断（オフライン）</h2><p class="muted">通信不要のテスト用6艇データを使い、120通りの計算が正しい形式で行われるかを確認します。</p><button id="runModelTest" style="width:100%">計算エンジンを診断</button><button id="demoModel" class="secondary" style="width:100%;margin-top:8px">テスト用レースの予想を表示</button><div id="modelTestResult" role="status"></div></section><section class="card"><h2>⑨ 過去レースの一括検証・時系列補正（試験版）</h2><p class="muted" style="font-size:13px">過去最大7日分の公開データから、対象場のレースを一括評価します。6艇の出走データと確定着順が揃うレースだけを集計します。購入履歴やオッズを使った収支検証ではありません。</p><div class="grid"><div><label for="backEnd">検証の最終日</label><input id="backEnd" type="date"></div><div><label for="backDays">検証日数</label><select id="backDays"><option value="1">1日</option><option value="3">3日</option><option value="7" selected>7日</option></select></div></div><div class="hint" style="margin-top:12px"><strong>検証対象の明細を記録</strong>：どの日・どの場・何Rが検証に入ったかをCSVで保存できます。検証対象に偏りがないか確認するための機能です。</div><label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px"><input type="checkbox" id="allowUnverified" style="width:auto;margin-top:3px"><span>検証用に、予想時点の数値と未確認の履歴出走表も集計する（結果は参考値・投資判断不可）</span></label>
+<p class="warn">初期設定では、予想時点のデータであることを証明できないレースは集計から除外します。チェックを入れると参考集計を許可します。</p><button id="inspectHistory" class="secondary" style="width:100%;margin-top:12px">過去データの着順構造を調査（1日分）</button>
+<div id="historyInspectResult" role="status" class="muted"></div>
+<button id="runThirdCalibration" class="secondary" style="width:100%;margin-top:12px">3着の条件付き補正を時系列で検証（7日分）</button><div id="thirdCalibrationResult" role="status"></div><button id="runOrderCalibration" class="secondary" style="width:100%;margin-top:12px">2着・3着の時系列補正を比較（7日分）</button><div id="orderCalibrationResult" role="status"></div><button id="runOrderAudit" class="secondary" style="width:100%;margin-top:12px">1号艇1着時の2着・3着精度を検証（7日分）</button><div id="orderAuditResult" role="status"></div><button id="runRollingTest" class="secondary" style="width:100%;margin-top:12px">複数期間で補正の再現性を検証（7日分）</button><div id="rollingResult" role="status"></div><button id="runSplitTest" class="secondary" style="width:100%;margin-top:12px">前半で補正・後半で検証（7日分）</button><div id="splitResult" role="status"></div><button id="runBacktest" style="width:100%;margin-top:12px">過去データを一括検証する</button><button id="exportAudit" class="secondary" style="width:100%;margin-top:8px" disabled>検証対象の明細CSVを保存</button><p id="backStatus" class="muted" role="status">未実行</p><div id="backResult"></div><div class="warn" style="margin-top:12px"><b>重要：</b>このAPIの過去出走データが、レース前の値を保存したものかは未確認です。除外内訳も表示してデータ欠損を可視化します。現在の検証は<strong>暫定的な再現性チェック</strong>であり、将来の利益や実際の予測性能を証明しません。結果を見て係数を調整した同じ期間を性能評価に再利用しないでください。</div></section>
+<section class="card" id="modelLab"><h2>⑫ WATER 9.4｜予想ロジック統合診断</h2>
+<p class="muted">旧モデルと、着順別・展開要因を分けた新モデル（試験版）を比較します。新モデルは<strong>予測保存・購入判断にまだ採用しません</strong>。利用可能なコース別データの有無も表示します。</p>
+<button id="runModelLab" style="width:100%">取得済みレースで新旧モデルを比較・分析</button>
+<div id="modelLabStatus" role="status" class="muted">先に②で出走表を取得してください。</div>
+<div id="modelLabResults"></div></section>
+<section class="card" id="deepLab"><h2>⑬ WATER 9.5｜一括分析・4点集中度検証</h2>
+<p class="muted">従来モデル・1着2着補正モデル・着順別試験モデルを、<strong>過去の別日</strong>で同時比較。1号艇1着率、3連単上位2/4/6/10点、正解順位、2着・3着の取り違え、4点集中度別の実績を一括表示します。<strong>モデル係数の調整に使用した期間は独立検証ではありません。</strong></p>
+<div class="grid"><div><label for="deepEnd">検証最終日</label><input id="deepEnd" type="date"></div><div><label for="deepDays">検証日数</label><select id="deepDays"><option value="7">7日</option><option value="14" selected>14日</option><option value="21">21日</option></select></div></div>
+<button id="runDeepLab" style="width:100%;margin-top:10px">新旧5モデルをまとめて時系列検証</button>
+<p id="deepStatus" class="muted" role="status">未実行。公開データの出走表時点は未確認のため参考検証です。</p>
+<div id="deepResults"></div><button id="deepExport" class="secondary" style="width:100%;margin-top:8px" disabled>レース別分析CSVを保存</button>
+<div class="warn">過去の出走表がレース前の状態か未確認です。データの欠損・コース別情報の未取得を明示します。4点的中率が改善しても、独立した将来データで再確認するまで購入推奨には使いません。</div></section>
+<section class="card" id="course103Lab"><h2>⑯ WATER 10.3｜コース別実測データの取得監査</h2>
+<p class="muted">対象日の公開JSONから、選手のコース別1〜3着率・出走回数が本当に含まれるかを調べます。推測値を実測値として表示しません。これは取得状況の監査で、予想精度の検証ではありません。</p>
+<button id="runCourse103" class="secondary" style="width:100%">①で選んだ日のコース別データを監査</button>
+<p id="course103Status" class="muted" role="status">未実行</p><div id="course103Result"></div>
+<p class="warn">実測値がない場合は「未取得」と表示します。コース別の固定基準値は選手個人の実績ではありません。新モデルは引き続き購入判断に使用しません。</p></section>
+<section class="card" id="order101Lab"><h2>⑮ WATER 10.2｜2着・3着の条件付き組合せ検証</h2><p class="muted">1号艇1着時の「2着→3着」の20組を、対象期間より前の4日間の実績と旧モデルの予測差から控えめに補正する試験版です。結果を知らない評価日の予想だけを比較します。4点的中率・全120通りログ損失・2着/3着漏れを同時検証し、改善しなければ採用しません。</p><p class="warn">コース別個人実績が未取得の問題は未解決です。ここでの補正は艇番の組合せ傾向を学習するもので、選手個人の枠別勝率の代わりにはなりません。</p><p class="muted">⑬の時系列検証を実行すると、10.2試験モデルも自動比較します。従来の予想表示・保存は変更しません。</p></section>
+<section class="card" id="water10Lab"><h2>⑭ WATER 10.0｜展開別モデル・4点選別検証</h2>
+<p class="muted">旧モデルを残したまま、差し残り・センター攻め・外の連動を分けた<strong>試験エンジン</strong>を比較します。数値係数は仮説であり、精度が上がった証拠ではありません。</p>
+<div class="row"><button id="water10Compare" class="secondary">取得済みレースの4点比較</button><button id="water10Test">展開モデルの計算診断</button></div>
+<div id="water10Status" role="status" class="muted">未実行。②で出走表を取得すると比較できます。</div><div id="water10Results"></div>
+<p class="muted">過去の複数日での精度比較は⑬の時系列検証を使用します。⑬では10.0モデルも同時評価し、旧版より悪い場合は採用しません。</p></section>
+<section class="card" id="snapshotCard"><h2>⑪ WATER 9.3｜予想の保存と答え合わせ</h2>
+<p class="muted">①補正計算 → ②出走表取得の後、現在の予測を保存します。保存した120通りの配分は結果取得時に再計算せず、そのまま比較します。<strong>レース前の保存だけを正式な将来検証の候補</strong>とします。</p>
+<div class="warn">保存はこのブラウザー内です。端末のデータ削除で失われるため、JSONバックアップも利用してください。レース開始時刻・展示・オッズは未確認です。当日保存はレース前かどうか証明できないため「時点未確認」とします。</div>
+<button id="saveSnapshot" style="width:100%">現在の上位10レースの予測を保存</button>
+<p id="snapshotStatus" class="muted" role="status">未保存</p>
+<button id="verifySnapshots" class="secondary" style="width:100%;margin-top:8px">保存済み予想を結果と照合</button>
+<div class="row" style="margin-top:8px"><button id="backupSnapshots" class="secondary">予想履歴をJSON保存</button><label style="flex:1;margin:0;font-weight:400">JSONを読み込む<input type="file" id="importSnapshots" accept=".json,application/json"></label></div>
+<div id="snapshotResults"></div></section>
+<section class="card"><h2>⑩ 保存・引き継ぎ</h2><p class="muted" style="font-size:13px">入力内容はこの端末に自動保存されます。別の端末に移す場合はJSONを保存してください。</p><div class="row"><button class="secondary" id="export">JSONを保存</button><button class="danger" id="clear">この日の候補を削除</button></div></section>
+<section class="card" id="water117panel"><h2>⑰ WATER 11.7｜オッズ時点保存・仮想収支検証</h2>
+<p class="muted">⑪で保存した予測の上位4点に対し、入力したオッズを<strong>時刻付きで一度だけ保存</strong>します。後から予測・オッズを再計算せず、結果照合後に仮想収支を集計します。購入は行いません。</p>
+<div class="warn">自動オッズ取得は未実装です。入力値が締切前のものかはアプリ側で証明できません。保存時刻がレース開始前かも未確認です。研究用の参考集計です。</div>
+<label for="w117race">保存済み予測を選択</label><select id="w117race"><option value="">⑪で予測を保存してください</option></select>
+<button type="button" id="w117refresh" class="secondary">保存済み予測を読み込む</button>
+<div id="w117form" class="race">未選択</div>
+<label for="w117stake">仮想投資額（円・100円単位）</label><input id="w117stake" type="number" min="400" step="100" value="1000" inputmode="numeric">
+<button type="button" id="w117save">4点のオッズと仮想配分を固定保存</button>
+<div id="w117status" role="status" class="muted">未保存</div>
+<button type="button" id="w117report" class="secondary">保存済み記録の収支を集計</button>
+<button type="button" id="w117backup" class="secondary">オッズ・仮想収支履歴をJSON保存</button>
+<div id="w117results"></div>
+</section>
+<section class="card" id="water118panel"><h2>⑱ WATER 11.8｜オッズ時点・購入条件の監査</h2>
+<p class="muted">⑰で固定保存した予測・手入力オッズを点検します。過去の手入力は締切前の実測オッズとして認定しません。自動オッズ取得は未実装です。</p>
+<label for="w118min">合成オッズの下限（倍）</label><input id="w118min" type="number" value="2.5" min="1.01" step="0.1" inputmode="decimal">
+<label for="w118prob">予測4点的中率の下限（%）</label><input id="w118prob" type="number" value="40" min="0" max="100" step="1" inputmode="decimal">
+<button type="button" id="w118run">保存記録の条件・時点を監査</button>
+<button type="button" class="secondary" id="w118csv">監査結果をCSV保存</button>
+<div id="w118result" class="race" aria-live="polite">未監査</div>
+<p class="warn">予測確率の較正が未確認のため、条件一致は購入推奨ではありません。手入力オッズを過去の確定オッズとみなした回収率の評価は禁止します。</p></section>
+<div class="footer">WATER 11.8｜旧モデル保存維持・展開別実験・自動投票なし</div></main>
+<script>
+'use strict';
+const names=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','唐津','大村'];
+const excluded=['戸田','江戸川','平和島'];const $=id=>document.getElementById(id);const pad=x=>String(x).padStart(2,'0');
+const localDay=(n=0)=>{let d=new Date();d.setDate(d.getDate()+n);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+let enabled=JSON.parse(localStorage.getItem('water71_venues')||'null')||names.filter(x=>!excluded.includes(x));let data=[];
+const key=()=>`water71_${$('day').value}`;
+const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function save(){localStorage.setItem(key(),JSON.stringify(data))}function load(){try{data=JSON.parse(localStorage.getItem(key())||'[]');if(!Array.isArray(data))data=[]}catch(e){data=[]}render()}
+function venueRender(){ $('venues').innerHTML=names.map(n=>`<label><input type="checkbox" data-venue="${n}" ${enabled.includes(n)?'checked':''}>${n}</label>`).join('');$('place').innerHTML=names.filter(n=>enabled.includes(n)).map(n=>`<option>${n}</option>`).join('');$('add').disabled=!enabled.length;}
+function setVenues(a){enabled=a;localStorage.setItem('water71_venues',JSON.stringify(enabled));venueRender()}
+$('venues').addEventListener('change',e=>{if(e.target.dataset.venue){const n=e.target.dataset.venue;setVenues(e.target.checked?[...new Set([...enabled,n])]:enabled.filter(x=>x!==n))}});
+$('all').onclick=()=>setVenues([...names]);$('defaults').onclick=()=>setVenues(names.filter(n=>!excluded.includes(n)));
+for(let i=1;i<=12;i++)$('number').add(new Option(`${i}R`,String(i)));
+$('day').value=localDay(1);$('day').onchange=load;$('tomorrow').onclick=()=>{$('day').value=localDay(1);load()};
+$('add').onclick=()=>{let place=$('place').value,num=Number($('number').value);if(!place)return;if(data.some(r=>r.place===place&&r.num===num)){msg('同じレースは登録済みです');return}if(data.length>=10){msg('候補は最大10レースです');return}data.push({id:`${place}-${num}`,place,num,origin:$('origin').value,values:{}});save();render();msg('候補を登録しました')};
+function msg(s){$('notice').textContent=s}
+const fields=[{k:'inside',name:'1号艇のイン逃げ基礎条件',desc:'過去のイン逃げ率・2コース逃がし率などを総合して評価',options:['','弱い','やや弱い','標準','良い','非常に良い']},{k:'st',name:'平均STの優位性',desc:'1号艇と相手艇の平均ST差・安定性',options:['','不利','やや不利','互角','有利','大幅有利']},{k:'ability',name:'選手能力の優位性',desc:'全国・当地・コース別成績など',options:['','不利','やや不利','互角','有利','大幅有利']},{k:'motor',name:'モーター評価',desc:'2連対率だけでなく直近の足色を考慮',options:['','悪い','やや悪い','普通','良い','非常に良い']},{k:'meet',name:'今節の走り',desc:'今節ST・着順・レース内容',options:['','悪い','やや悪い','普通','良い','非常に良い']},{k:'exhibit',name:'展示・進入の評価',desc:'展示前は未入力でも可。進入変更・展示足の影響',options:['','不利','やや不利','普通','有利','大幅有利']}];
+const weights={inside:30,st:25,ability:20,motor:12,meet:8,exhibit:5};
+function assess(r){const v=r.values||{};const needed=['inside','st','ability','motor','meet'];if(needed.some(k=>!Number(v[k])))return null;let total=0,denom=0;for(const f of fields){let x=Number(v[f.k]);if(x){total+=(x-1)/4*weights[f.k];denom+=weights[f.k]}}return {score:Math.round(total/denom*100),odds:Number(v.odds)||null,hasExhibit:!!v.exhibit}}
+function render(){ $('count').textContent=`${data.length} / 10`;$('items').innerHTML=data.length?data.map((r,i)=>{let a=assess(r),v=r.values||{};return `<div class="race"><div class="row"><strong>${escapeHtml(r.place)} ${r.num}R</strong><span class="pill ${r.origin==='both'?'green':''}">${r.origin==='both'?'選別一致':r.origin==='user'?'自分の候補':'システム（手動）'}</span></div><div class="sub">${a?`暫定評価 ${a.score}点 / 100点 · ${a.hasExhibit?'展示入力済':'展示未入力'}`:'分析値の入力待ち'}</div><details><summary>分析値を入力・変更</summary>${fields.map(f=>`<label>${f.name}</label><small>${f.desc}</small><select data-i="${i}" data-field="${f.k}">${f.options.map((o,j)=>`<option value="${j}" ${Number(v[f.k]||0)===j?'selected':''}>${o||'未入力'}</option>`).join('')}</select>`).join('')}<label>合成オッズ（手入力）</label><input data-i="${i}" data-field="odds" type="number" min="1" step="0.01" inputmode="decimal" placeholder="例：2.8" value="${v.odds||''}"><p class="muted" style="font-size:12px">合成オッズは買い目への資金配分を考慮した数値を入力してください。未入力でも評価点は算出できます。</p></details><div class="row" style="margin-top:9px"><button class="secondary" data-action="both" data-i="${i}">選別一致に変更</button><button class="danger" data-action="remove" data-i="${i}">削除</button></div></div>`}).join(''):'<p class="muted">候補レースはまだありません。</p>';rank();showAutoCompare()}
+function rank(){const scored=data.map(r=>({...r,assessment:assess(r)})).filter(r=>r.assessment).sort((a,b)=>b.assessment.score-a.assessment.score);$('ranking').innerHTML=scored.length?scored.map((r,i)=>{let a=r.assessment,odds=a.odds;let flag=odds===null?'オッズ未入力':odds>=2.5?'オッズ条件クリア':'オッズ2.5倍未満';return `<div class="race"><div class="row"><div><span class="pill">評価順位 ${i+1}位</span><div style="margin-top:7px"><strong>${escapeHtml(r.place)} ${r.num}R</strong></div></div><div class="score">${a.score}<small>点</small></div></div><div class="bar"><span style="width:${a.score}%"></span></div><div class="metric"><span>合成オッズ</span><b>${odds===null?'未入力':odds.toFixed(2)+'倍'}</b></div><div class="metric"><span>条件確認</span><b>${flag}</b></div><div class="status">${a.hasExhibit?'展示評価を反映':'展示前の暫定評価'}／購入推奨は未判定</div></div>`}).join(''):'<p class="muted">5項目の基礎評価を入力すると、候補がここに順位順で表示されます。</p>'}
+$('items').addEventListener('change',e=>{let i=Number(e.target.dataset.i),k=e.target.dataset.field;if(!Number.isInteger(i)||!data[i]||!k)return;data[i].values[k]=e.target.value;save();render()});
+$('items').addEventListener('click',e=>{let b=e.target.closest('button[data-action]');if(!b)return;let i=Number(b.dataset.i);if(b.dataset.action==='remove'){data.splice(i,1)}else if(data[i])data[i].origin='both';save();render()});
+$('export').onclick=()=>{let obj={version:'7.1',date:$('day').value,venues:enabled,races:data};let blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`WATER71_${$('day').value}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+$('clear').onclick=()=>{if(confirm('この日の候補をすべて削除しますか？')){data=[];save();render()}};
+venueRender();load();
+
+// 7.2: published race programs, with transparent pre-race screening only.
+const finite=(v)=>{const x=Number(v);return v===null||v===undefined||v===''||!Number.isFinite(x)?null:x};
+let programCandidates=[];
+function screenRace(rr,place,num){
+ const racers=Array.from({length:6},(_,i)=>rr?.racers?.[String(i+1)]||{});
+ if(racers.some(r=>!r.name))return null;
+ const one=racers[0];const w=finite(one.national_win_rate),st=finite(one.average_start_timing),motor=finite(one.motor_top_2_percent);
+ const others=racers.slice(1),otherWins=others.map(r=>finite(r.national_win_rate)).filter(x=>x!==null);
+ const otherST=others.map(r=>finite(r.average_start_timing)).filter(x=>x!==null);
+ if(w===null||st===null||otherWins.length<3)return null;
+ const strongest=Math.max(...otherWins), fastest=otherST.length?Math.min(...otherST):null;
+ // A relative ranking heuristic, not a probability model.
+ const score=Math.max(0,Math.min(100,Math.round(50+12*(w-strongest)+100*(.17-st)+(motor===null?0:(motor-35)*.25)+(fastest===null?0:100*(fastest-st)*.4))));
+ return {place,num,score,w,st,motor,strongest,oneName:one.name,racers};
+}
+function showPrograms(){
+ const target=$('scheduleResults');
+ if(!programCandidates.length){target.innerHTML='<p class="muted">選別可能なレースがありません。出走表の公開状況を確認してください。</p>';return}
+ target.innerHTML=`<p class="muted">${programCandidates.length}レースを比較。上位15件を表示します。候補への登録は最大10レースです。</p>`+programCandidates.slice(0,15).map((r,i)=>`<div class="race"><div class="row"><strong>${escapeHtml(r.place)} ${r.num}R</strong><span class="pill">暫定選別 ${r.score}点</span></div><div class="sub">1号艇 ${escapeHtml(r.oneName)} ／全国勝率 ${r.w.toFixed(2)} ／平均ST ${r.st.toFixed(2)} ／モーター2連対率 ${r.motor===null?'不明':r.motor+'%'}</div><div class="row"><button class="secondary" data-pick="${i}">候補に登録</button></div></div>`).join('');
+}
+$('fetchSchedule').addEventListener('click',async()=>{
+ const b=$('fetchSchedule'),status=$('fetchStatus');b.disabled=true;status.textContent='出走表を取得しています…';$('scheduleResults').innerHTML='';
+ try{
+  const ds=$('day').value.replaceAll('-','');if(!/^\d{8}$/.test(ds))throw Error('日付を選んでください');
+  const url=`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`;
+  const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw Error(`公開データ HTTP ${response.status}`);
+  const payload=await response.json(),stadiums=payload?.programs?.stadiums;
+  if(!stadiums)throw Error('この日付の出走表が公開されていません');
+  const found=[];let total=0;
+  for(const [id,stadium] of Object.entries(stadiums)){
+   const name=names[Number(id)-1];if(!name||!enabled.includes(name))continue;
+   for(const [num,race] of Object.entries(stadium?.races||{})){
+    total++;const row=screenRace(race,name,Number(num));if(row)found.push(row);
+   }
+  }
+  found.sort((a,b)=>b.score-a.score||a.place.localeCompare(b.place,'ja')||a.num-b.num);
+  programCandidates=found;showProbabilities();showAutoCompare();status.textContent=`開催データ取得済み：${total}レース中、基礎データが揃う${found.length}レースを評価。展示前の暫定順位です。`;showPrograms();
+ }catch(e){status.textContent='取得できませんでした：'+e.message+'。日付や公開状況、通信環境をご確認ください。'}finally{b.disabled=false}
+});
+$('scheduleResults').addEventListener('click',e=>{
+ const b=e.target.closest('[data-pick]');if(!b)return;const r=programCandidates[Number(b.dataset.pick)];if(!r)return;
+ if(data.some(x=>x.place===r.place&&Number(x.num)===r.num)){msg('すでに候補に登録されています');return}
+ if(data.length>=10){msg('候補は10レースまでです');return}
+ data.push({place:r.place,num:r.num,origin:'system',values:{},screenScore:r.score});save();render();msg(`${r.place} ${r.num}Rを候補に登録しました`);
+});
+
+// Offline structural inspection. No upload; parsing happens entirely in browser.
+$('inspectJson').addEventListener('change',async e=>{
+ const el=$('inspectResult'),file=e.target.files?.[0];
+ if(!file)return;
+ if(file.size>15_000_000){el.textContent='15MBを超えるファイルは対象外です';return}
+ try{
+  const obj=JSON.parse(await file.text());
+  const stadiums=obj?.programs?.stadiums;
+  const entries=stadiums&&typeof stadiums==='object'?Object.entries(stadiums):[];
+  const races=entries.flatMap(([venue,v])=>Object.entries(v?.races||{}).map(([num,r])=>({venue,num,r})));
+  const six=races.filter(x=>Array.from({length:6},(_,i)=>x.r?.racers?.[String(i+1)]?.name).every(Boolean));
+  const screened=races.filter(x=>screenRace(x.r,names[Number(x.venue)-1]||x.venue,Number(x.num)));
+  const result=races.filter(x=>getFinishOrder(x.r));
+  const sample=races[0]?.r;
+  const safeKeys=o=>o&&typeof o==='object'?Object.keys(o).slice(0,25).join(', '):'なし';
+  el.innerHTML='<p><b>読み込み成功</b>（通信なし）</p>'+
+    `<div class="metric"><span>開催場数</span><b>${entries.length}</b></div>`+
+    `<div class="metric"><span>レース数</span><b>${races.length}</b></div>`+
+    `<div class="metric"><span>6艇の名前がある</span><b>${six.length}</b></div>`+
+    `<div class="metric"><span>予想モデルの入力条件を満たす</span><b>${screened.length}</b></div>`+
+    `<div class="metric"><span>確定1〜3着を読める</span><b>${result.length}</b></div>`+
+    `<p class="muted">最上位の項目: ${escapeHtml(safeKeys(obj))}</p>`+
+    `<p class="muted">レース内の項目: ${escapeHtml(safeKeys(sample))}</p>`+
+    `<p class="muted">出走選手の項目: ${escapeHtml(safeKeys(sample?.racers?.['1']))}</p>`+
+    `<p class="muted">結果の項目: ${escapeHtml(safeKeys(sample?.result))}</p>`;
+ }catch(err){el.textContent='JSONの解析に失敗しました：'+String(err.message||err)}
+});
+
+// Demonstration uses synthetic athletes, never published race data.
+$('demoModel').onclick=()=>{
+ const racers=Object.fromEntries(Array.from({length:6},(_,i)=>[String(i+1),{
+  name:'サンプル選手'+(i+1),national_win_rate:[7.3,6.1,5.7,5.3,5.0,4.8][i],
+  average_start_timing:[.13,.15,.16,.15,.17,.18][i],
+  motor_top_2_percent:[43,39,37,35,33,31][i]
+ }]));
+ const race=screenRace({racers},'大村',11);
+ if(!race){$('modelTestResult').textContent='サンプルデータの読み取りに失敗しました';return}
+ programCandidates=[race];showProbabilities();showAutoCompare();
+ $('modelTestResult').innerHTML='<p class="hint">サンプル選手6艇の参考配分を「③ 6艇の展開モデル」に表示しました。実際の大村11Rではありません。</p>';
+ $('probResults').scrollIntoView({behavior:'smooth'});
+};
+// 7.9: deterministic local self-test, independent of network availability.
+$('runModelTest').onclick=runModelSelfTest;
+function runModelSelfTest(){
+ const tests=[];
+ const check=(name,ok,detail='')=>tests.push({name,ok:Boolean(ok),detail});
+ const racers=Array.from({length:6},(_,i)=>({
+   name:'テスト選手'+(i+1),national_win_rate:6.5-i*.3,
+   average_start_timing:.14+i*.01,motor_top_2_percent:40-i
+ }));
+ const sample={racers};
+ const screened=screenRace({racers:Object.fromEntries(racers.map((r,i)=>[String(i+1),r]))},'大村',11);
+ check('6艇の出走データを評価できる',!!screened);
+ const m=screened?modelRace(screened):null;
+ check('120通りの着順を生成',m?.outcomes?.length===120);
+ if(m){
+   const total=m.outcomes.reduce((a,x)=>a+x.q,0);
+   check('120通りの確率配分合計が100%',Math.abs(total-1)<1e-10,total.toFixed(12));
+   check('1〜6号艇の1着配分合計が100%',Math.abs(m.head.reduce((a,b)=>a+b,0)-1)<1e-10);
+   check('イン逃げ時の2着配分合計が100%',Math.abs(m.conditionalSecond.reduce((a,b)=>a+b,0)-1)<1e-10);
+   check('出目が重複しない',new Set(m.outcomes.map(x=>`${x.a}-${x.b}-${x.c}`)).size===120);
+   check('すべての配分が0〜100%',m.outcomes.every(x=>Number.isFinite(x.q)&&x.q>=0&&x.q<=1));
+   check('上位6通りが確率順',m.top.every((x,i,a)=>i===0||a[i-1].q>=x.q));
+ }
+ const passed=tests.filter(x=>x.ok).length;
+ const box=$('modelTestResult');
+ box.innerHTML=`<p><b>${passed}/${tests.length} 項目合格</b></p>`+
+   tests.map(x=>`<p style="margin:5px 0">${x.ok?'✅':'❌'} ${escapeHtml(x.name)} ${escapeHtml(x.detail)}</p>`).join('')+
+   '<p class="muted">これは計算処理の整合性確認です。予想精度の検証ではありません。</p>';
+}
+// 7.3: coherent exploratory finish-order distribution (NOT calibrated win probabilities).
+const laneBias=[1.95,1.20,1.00,.81,.65,.51];
+function modelRace(r){
+ const weights=r.racers.map((x,i)=>{
+  const win=finite(x.national_win_rate),st=finite(x.average_start_timing),motor=finite(x.motor_top_2_percent);
+  if(win===null||st===null)return null;
+  // Hand-chosen coefficients, awaiting out-of-sample calibration.
+  const ability=Math.exp(Math.max(-1.5,Math.min(1.5,(win-5.5)*.23)));
+  const start=Math.exp(Math.max(-.7,Math.min(.7,(.17-st)*2.4)));
+  const machine=motor===null?1:Math.exp(Math.max(-.35,Math.min(.35,(motor-35)*.008)));
+  return laneBias[i]*ability*start*machine;
+ });
+ if(weights.some(x=>x===null))return null;
+ const outcomes=[];let sum=0;
+ for(let a=0;a<6;a++)for(let b=0;b<6;b++)if(b!==a)for(let c=0;c<6;c++)if(c!==a&&c!==b){
+  const total=weights.reduce((t,x)=>t+x,0);
+  const q=(weights[a]/total)*(weights[b]/(total-weights[a]))*(weights[c]/(total-weights[a]-weights[b]));
+  outcomes.push({a:a+1,b:b+1,c:c+1,q});sum+=q;
+ }
+ // Numerical normalization, 120 outcomes sum to 1.
+ outcomes.forEach(x=>x.q/=sum);
+ const head=Array.from({length:6},(_,i)=>outcomes.filter(x=>x.a===i+1).reduce((t,x)=>t+x.q,0));
+ const conditionalSecond=Array.from({length:5},(_,i)=>outcomes.filter(x=>x.a===1&&x.b===i+2).reduce((t,x)=>t+x.q,0)/head[0]);
+ return {head,conditionalSecond,outcomes:outcomes.sort((a,b)=>b.q-a.q),top:outcomes.slice(0,6)};
+}
+
+// 8.8: preserve conditional order probabilities; shift only P(first=1).
+let activeCalibration=null;
+function calibrateDistribution(m,offset){
+ if(!m||!Number.isFinite(offset))return m;
+ const old=m.head[0],target=sigmoid(logit(old)+offset);
+ if(!(old>0&&old<1&&target>0&&target<1))return m;
+ const outcomes=m.outcomes.map(x=>({...x,q:x.q*(x.a===1?target/old:(1-target)/(1-old))}));
+ const total=outcomes.reduce((t,x)=>t+x.q,0);
+ outcomes.forEach(x=>x.q/=total);
+ outcomes.sort((a,b)=>b.q-a.q);
+ const head=Array.from({length:6},(_,i)=>outcomes.filter(x=>x.a===i+1).reduce((t,x)=>t+x.q,0));
+ const conditionalSecond=Array.from({length:5},(_,i)=>outcomes.filter(x=>x.a===1&&x.b===i+2).reduce((t,x)=>t+x.q,0)/head[0]);
+ return {head,conditionalSecond,outcomes,top:outcomes.slice(0,6),rawHead:old,offset};
+}
+function integrateSecondDistribution(m,multipliers){
+ if(!m||!Array.isArray(multipliers)||multipliers.length!==5)return m;
+ const original=m.conditionalSecond;
+ const revised=calibratedSecond(m,multipliers);
+ const outcomes=m.outcomes.map(x=>({...x,q:x.a===1?x.q*revised[x.b-2]/Math.max(1e-12,original[x.b-2]):x.q}));
+ const total=outcomes.reduce((a,x)=>a+x.q,0);
+ outcomes.forEach(x=>x.q/=total);
+ outcomes.sort((a,b)=>b.q-a.q);
+ const head=Array.from({length:6},(_,i)=>outcomes.filter(x=>x.a===i+1).reduce((a,x)=>a+x.q,0));
+ const conditionalSecond=Array.from({length:5},(_,i)=>outcomes.filter(x=>x.a===1&&x.b===i+2).reduce((a,x)=>a+x.q,0)/head[0]);
+ return {...m,head,conditionalSecond,outcomes,top:outcomes.slice(0,6),secondBias:multipliers};
+}
+function currentModel(r){
+ const base=modelRace(r);
+ if(!base||activeCalibration?.day!==$('day').value)return base;
+ const headCalibrated=calibrateDistribution(base,activeCalibration.offset);
+ return activeCalibration.secondBias?integrateSecondDistribution(headCalibrated,activeCalibration.secondBias):headCalibrated;
+}
+function checkIntegratedModel(m){
+ const sum=m.outcomes.reduce((a,x)=>a+x.q,0);
+ const first=m.outcomes.filter(x=>x.a===1).reduce((a,x)=>a+x.q,0);
+ const second=m.conditionalSecond.reduce((a,x)=>a+x,0);
+ return Math.abs(sum-1)<1e-9&&Math.abs(first-m.head[0])<1e-9&&Math.abs(second-1)<1e-9&&m.outcomes.every(x=>Number.isFinite(x.q)&&x.q>=0);
+}
+function refreshModelDisplays(){showProbabilities();showAutoCompare()}
+$('fitLive').addEventListener('click',async()=>{
+ const btn=$('fitLive'),status=$('fitStatus'),audit=$('fitAudit'),day=$('day').value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(day)){status.textContent='先に対象日を指定してください。';return}
+ const dt=new Date(day+'T12:00:00'),today=new Date(localDay()+'T12:00:00');
+ if(dt>new Date(today.getTime()+86400000)){status.textContent='未来の対象日は翌日までにしてください。';return}
+ btn.disabled=true;activeCalibration=null;refreshModelDisplays();
+ const rows=[],secondRows=[];let days=0,fail=0,finish=0;
+ try{
+  for(let i=4;i>=1;i--){
+   const d=new Date(dt);d.setDate(d.getDate()-i);
+   const ds=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+   status.textContent=`補正用データ取得中：${5-i}/4日（${ds}）`;
+   const response=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+   if(!response.ok){fail++;continue}
+   const json=await response.json(),stadiums=json?.programs?.stadiums;
+   if(!stadiums){fail++;continue}
+   days++;
+   for(const [id,stadium] of Object.entries(stadiums)){
+    const name=names[Number(id)-1];if(!enabled.includes(name))continue;
+    for(const [num,rr] of Object.entries(stadium?.races||{})){
+     const order=getFinishOrder(rr);if(!order){finish++;continue}
+     const race=screenRace(rr,name,Number(num));if(!race)continue;
+     const m=modelRace(race);if(m){rows.push({p:m.head[0],y:Number(order[0]===1)});if(order[0]===1)secondRows.push({m,order})}
+    }
+   }
+  }
+  if(days!==4||rows.length<100){status.textContent=`補正は適用しません。取得 ${days}/4日・${rows.length}R（必要：4日成功・100R以上）。`;return}
+  const offset=fitOffset(rows);
+  const raw=scorePred(rows,x=>x),cal=scorePred(rows,p=>sigmoid(logit(p)+offset));
+  const secondBias=secondRows.length>=50?fitSecondBias(secondRows):null;
+  activeCalibration={day,offset,rows:rows.length,secondBias};
+  status.textContent=`補正準備完了：対象日 ${day} ／ 直前4日 ${rows.length}R ／ 1着補正係数 ${offset.toFixed(3)} ／ 2着補正 ${secondBias?secondRows.length+'Rで算出':'対象不足のため未適用'}`;
+  audit.innerHTML=`<div class="hint">学習期間内の平均：実際 ${(raw.hit*100).toFixed(1)}% ／ 補正前 ${(raw.mean*100).toFixed(1)}% ／ 補正後 ${(cal.mean*100).toFixed(1)}%。これは学習期間の値であり予測性能の評価ではありません。2着艇別の補正倍率：${secondBias?secondBias.map((v,i)=>`${i+2}号艇 ${v.toFixed(2)}`).join(' ／ '):'未適用'}。3着条件付き配分は維持し、3連単120通りの合計を100%に保ちます。</div>`;
+  const sample=programCandidates.find(r=>modelRace(r));
+  if(sample&&!checkIntegratedModel(currentModel(sample))){activeCalibration=null;status.textContent='整合性検査に失敗したため補正を解除しました。';return}
+  refreshModelDisplays();
+ }catch(e){status.textContent='取得または計算に失敗しました：'+String(e?.message||e)}
+ finally{btn.disabled=false}
+});
+
+function showAutoCompare(){
+ const target=$('autoCompare');
+ if(!target)return;
+ if(!data.length){target.innerHTML='<p class="muted">候補を登録すると、ここに自動比較を表示します。</p>';return}
+ const found=data.map(d=>{
+   const race=programCandidates.find(r=>r.place===d.place&&Number(r.num)===Number(d.num));
+   const model=race?currentModel(race):null;
+   return {d,race,model};
+ });
+ const ready=found.filter(x=>x.model).sort((a,b)=>b.model.head[0]-a.model.head[0]);
+ const pending=found.filter(x=>!x.model);
+ target.innerHTML='<p class="hint">参考順位です。補正適用時も過去データの時点未確認であり、オッズ・期待値の評価は行っていません。</p>'+
+ ready.map((x,i)=>{
+  const m=x.model, fmt=v=>(v*100).toFixed(1)+'%';
+  const inTop=m.outcomes.filter(y=>y.a===1).slice(0,4).map(y=>`${y.a}-${y.b}-${y.c} ${fmt(y.q)}`).join(' ／ ');
+  return `<div class="race"><div class="row"><strong>${i+1}位 ${escapeHtml(x.d.place)} ${x.d.num}R</strong><span class="pill">1号艇1着の参考配分 ${fmt(m.head[0])}</span></div><div class="sub">一次選別 ${x.race.score}点 ／ 6艇の出走表を自動分析</div><div class="sub">イン逃げ時の2着参考配分：${m.conditionalSecond.map((v,j)=>`${j+2}号艇 ${fmt(v)}`).join(' ／ ')}</div><div class="sub">1頭の3連単参考上位：${inTop}</div></div>`;
+ }).join('')+
+ pending.map(x=>`<div class="race"><strong>${escapeHtml(x.d.place)} ${x.d.num}R</strong><p class="muted">自動比較の対象外：この日付の出走表が未取得、または6艇の計算用データが不足しています。</p></div>`).join('');
+}
+function modelComparison(r){
+ const raw=modelRace(r);
+ if(!raw)return null;
+ const fitted=activeCalibration?.day===$('day').value;
+ const first=fitted?calibrateDistribution(raw,activeCalibration.offset):raw;
+ const both=fitted&&activeCalibration.secondBias?integrateSecondDistribution(first,activeCalibration.secondBias):first;
+ return {raw,first,both,fitted,secondApplied:!!(fitted&&activeCalibration.secondBias)};
+}
+function checkComparison(x){
+ if(!x||![x.raw,x.first,x.both].every(checkIntegratedModel))return '120通りの合計・1着/2着確率の整合性に問題があります';
+ const {raw,first,both}=x;
+ const eps=1e-8;
+ // 1st calibration must not change P(2nd | 1st=1).
+ if(raw.conditionalSecond.some((v,i)=>Math.abs(v-first.conditionalSecond[i])>eps))return '1着補正が2着条件付き確率を変更しています';
+ // 2nd calibration must not change first-place marginals.
+ if(first.head.some((v,i)=>Math.abs(v-both.head[i])>eps))return '2着補正が1着確率を変更しています';
+ // For every fixed 2nd, 3rd conditional distribution must stay unchanged.
+ for(let b=2;b<=6;b++)for(let c=2;c<=6;c++)if(c!==b){
+  const cond=m=>{
+   const joint=m.outcomes.find(x=>x.a===1&&x.b===b&&x.c===c)?.q||0;
+   return joint/Math.max(1e-12,m.head[0]*m.conditionalSecond[b-2]);
+  };
+  if(Math.abs(cond(first)-cond(both))>eps)return '3着条件付き配分が変更されています';
+ }
+ return null;
+}
+function showProbabilities(){
+ const target=$('probResults');
+ const models=programCandidates.map(r=>({r,x:modelComparison(r)})).filter(v=>v.x).slice(0,10);
+ if(!models.length){target.innerHTML='<p class="muted">6艇の勝率・STデータが揃うレースがありません。</p>';return}
+ const fmt=v=>(v*100).toFixed(1)+'%';
+ const errors=models.map(v=>checkComparison(v.x)).filter(Boolean);
+ const fitted=activeCalibration?.day===$('day').value;
+ const mode=fitted?(activeCalibration.secondBias?'1着・2着の統合補正を適用中':'1着補正のみ適用中（2着の学習データ不足）'):'未補正（①の補正計算を押してください）';
+ target.innerHTML=`<div class="hint"><b>WATER 9.2 比較診断：</b>${mode}。対象日 ${escapeHtml($('day').value)}。各レースで補正前 → 1着補正後 → 1着・2着補正後を比較します。${errors.length?'<b style="color:#b42318">整合性検査に問題があります。補正値を使用しないでください。</b>':'整合性検査：'+models.length+'件合格。'}</div>`+
+ models.map(({r,x})=>{
+  const {raw,first,both,secondApplied}=x;
+  const issue=checkComparison(x);
+  const secondRows=Array.from({length:5},(_,i)=>`<tr><td>${i+2}号艇</td><td>${fmt(raw.conditionalSecond[i])}</td><td>${fmt(both.conditionalSecond[i])}</td><td>${((both.conditionalSecond[i]-raw.conditionalSecond[i])*100).toFixed(1)}pt</td></tr>`).join('');
+  const firstRows=`<tr><td>1号艇1着</td><td>${fmt(raw.head[0])}</td><td>${fmt(first.head[0])}</td><td>${fmt(both.head[0])}</td></tr>`;
+  const topRows=both.outcomes.slice(0,6).map(y=>{
+   const old=raw.outcomes.find(z=>z.a===y.a&&z.b===y.b&&z.c===y.c)?.q||0;
+   return `<tr><td>${y.a}-${y.b}-${y.c}</td><td>${fmt(old)}</td><td>${fmt(y.q)}</td></tr>`;
+  }).join('');
+  return `<details class="race"><summary>${escapeHtml(r.place)} ${r.num}R　1号艇1着の参考配分 ${fmt(both.head[0])}</summary>
+   <p class="sub"><b>補正の状態：</b>${x.fitted?(secondApplied?'1着・2着とも適用':'1着のみ適用'):'未補正'}${issue?`<strong style="color:#b42318"> ／ エラー：${escapeHtml(issue)}</strong>`:' ／ 整合性OK'}</p>
+   <p class="sub"><b>1着の比較（補正前 → 1着補正 → 統合後）</b></p>
+   <div style="overflow-x:auto"><table style="width:100%;font-size:13px"><thead><tr><th>対象</th><th>補正前</th><th>1着補正</th><th>統合後</th></tr></thead><tbody>${firstRows}</tbody></table></div>
+   <p class="sub"><b>1号艇1着時の2着確率（補正前 → 統合後）</b></p>
+   <div style="overflow-x:auto"><table style="width:100%;font-size:13px"><thead><tr><th>艇番</th><th>補正前</th><th>統合後</th><th>差</th></tr></thead><tbody>${secondRows}</tbody></table></div>
+   <p class="sub"><b>3連単の参考配分 上位6点（統合後の順位）</b></p>
+   <div style="overflow-x:auto"><table style="width:100%;font-size:13px"><thead><tr><th>出目</th><th>補正前</th><th>統合後</th></tr></thead><tbody>${topRows}</tbody></table></div>
+   <p class="muted" style="font-size:12px">120通り合計：${fmt(both.outcomes.reduce((t,y)=>t+y.q,0))}。3着の条件付き配分は維持。参考値であり購入推奨・期待回収率は算出しません。</p></details>`;
+ }).join('');
+}
+$('day').addEventListener('change',()=>{activeCalibration=null;$('fitStatus').textContent='日付変更のため補正を解除しました。';$('fitAudit').innerHTML='';programCandidates=[];$('probResults').innerHTML='<p class="muted">日付を変更しました。出走表を再取得してください。</p>';$('scheduleResults').innerHTML='';});
+
+// 7.8: retrospective data audit; no odds, no simulated betting.
+let auditRows=[];
+function csvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
+$('exportAudit').onclick=()=>{
+ const columns=['date','venue','race','status','predicted_in','actual_in','actual_order','data_provenance','reason'];
+ const csv='\uFEFF'+columns.join(',')+'\r\n'+auditRows.map(r=>columns.map(k=>csvCell(r[k])).join(',')).join('\r\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='WATER_81_audit_'+$('backEnd').value+'.csv';
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+$('backEnd').value=localDay(-1);
+
+$('inspectHistory').addEventListener('click',async()=>{
+ const box=$('historyInspectResult'),btn=$('inspectHistory'),end=$('backEnd').value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(end)){box.textContent='検証日を選択してください';return}
+ const ds=end.replaceAll('-','');
+ btn.disabled=true;box.textContent='公開データの構造を確認中…';
+ try{
+  const url=`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`;
+  const res=await fetch(url,{cache:'no-store'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  const json=await res.json(),stadiums=json?.programs?.stadiums;
+  if(!stadiums)throw Error('programs.stadiums がありません');
+  const races=Object.entries(stadiums).flatMap(([venue,st])=>Object.entries(st?.races||{}).map(([num,r])=>({venue,num,r})));
+  if(!races.length)throw Error('レースデータがありません');
+  const samples=[races[0],races[Math.floor(races.length/2)],races[races.length-1]];
+  const keys=x=>x&&typeof x==='object'?Object.keys(x):[];
+  const snapshot=samples.map(({venue,num,r})=>({
+   venue,num,raceKeys:keys(r),resultType:typeof r?.result,
+   resultKeys:keys(r?.result),resultRacersType:typeof r?.result?.racers,
+   resultRacersKeys:keys(r?.result?.racers),
+   firstResultRacer:r?.result?.racers?Object.values(r.result.racers)[0]:null,
+   finishKeys:keys(r?.finish),racer1Keys:keys(r?.racers?.['1']),
+   resultPreview:r?.result??null
+  }));
+  const report={date:ds,raceCount:races.length,readableFinishes:races.filter(x=>getFinishOrder(x.r)).length,samples:snapshot};
+  box.innerHTML=`<p><b>${races.length}レース中、現在の読み取り処理で着順を読めたのは ${report.readableFinishes}件</b></p><p>下の診断結果をコピーして、このチャットに貼り付けてください。結果が長い場合は冒頭だけでも構いません。</p><textarea id="historyInspectText" rows="12" readonly style="width:100%;font-size:12px"></textarea><button id="copyHistoryInspect" class="secondary" style="width:100%;margin-top:8px">診断結果をコピー</button>`;
+  $('historyInspectText').value=JSON.stringify(report,null,2).slice(0,16000);
+  $('copyHistoryInspect').onclick=()=>{
+   const t=$('historyInspectText');t.focus();t.select();
+   if(navigator.clipboard?.writeText)navigator.clipboard.writeText(t.value).catch(()=>document.execCommand('copy'));
+   else document.execCommand('copy');
+  };
+ }catch(err){box.textContent='取得・解析失敗：'+String(err?.message||err)}
+ finally{btn.disabled=false}
+});
+
+function getFinishOrder(rr){
+ const rs=rr?.result?.racers;if(!rs)return null;
+ // result.racers[].number is the racer registration ID, not the boat number.
+ // The boat number is entry_number; place_number is the confirmed finish.
+ const rows=Object.values(rs).map(x=>({lane:Number(x?.entry_number),place:Number(x?.place_number)}));
+ const first=[1,2,3].map(place=>rows.filter(x=>x.place===place));
+ if(first.some(x=>x.length!==1))return null;
+ const order=first.map(a=>a[0].lane);
+ return order.every(x=>Number.isInteger(x)&&x>=1&&x<=6)&&new Set(order).size===3?order:null;
+}
+function binSummary(b){return b.n?`${b.n}件／平均予測 ${(100*b.pred/b.n).toFixed(1)}%／実際 ${(100*b.hit/b.n).toFixed(1)}%`:'該当なし'}
+// 8.6: Chronological holdout for intercept-only log-odds correction.
+// This does not validate provenance of archived racecard features.
+function sigmoid(z){return z>=0?1/(1+Math.exp(-z)):Math.exp(z)/(1+Math.exp(z))}
+function logit(p){p=Math.max(1e-7,Math.min(1-1e-7,p));return Math.log(p/(1-p))}
+function scorePred(rows,transform){
+ let bs=0,ll=0,mean=0,hit=0;
+ for(const x of rows){const p=Math.max(1e-7,Math.min(1-1e-7,transform(x.p)));bs+=(p-x.y)**2;ll-=x.y*Math.log(p)+(1-x.y)*Math.log(1-p);mean+=p;hit+=x.y}
+ return {n:rows.length,mean:mean/rows.length,hit:hit/rows.length,brier:bs/rows.length,loss:ll/rows.length};
+}
+function fitOffset(rows){
+ // Smoothed empirical target avoids infinite offsets on extreme training samples.
+ const target=(rows.reduce((t,x)=>t+x.y,0)+.5)/(rows.length+1);
+ let lo=-8,hi=8;
+ for(let k=0;k<65;k++){const mid=(lo+hi)/2;const avg=rows.reduce((t,x)=>t+sigmoid(logit(x.p)+mid),0)/rows.length;if(avg<target)lo=mid;else hi=mid}
+ return (lo+hi)/2;
+}
+
+// 8.7: three rolling forward tests. Each fold uses strictly earlier days.
+// Calibration and reference baseline are fit using training days only.
+
+// 8.9: conditional second and third order audit. No result data enters the model.
+// 9.0 exploratory calibration: conditional 2nd and 3rd, train 4 days / test 3 days.
+// Bayesian shrinkage of lane-specific second-place biases, fit on training races only.
+function secondConditional(m){return m.conditionalSecond.slice()}
+function calibratedSecond(m,multipliers){
+ const p=secondConditional(m).map((v,i)=>v*multipliers[i]);
+ const z=p.reduce((a,b)=>a+b,0);
+ return p.map(v=>v/z);
+}
+function conditionalPair(m,b,c,secondProb){
+ const p2=m.conditionalSecond[b-2];
+ const rawPair=m.outcomes.find(o=>o.a===1&&o.b===b&&o.c===c)?.q||0;
+ return secondProb[b-2]*rawPair/(m.head[0]*p2);
+}
+function orderMetrics(rows,mults){
+ let loss2=0,lossPair=0,top2=0,top4=0,top6=0,top10=0;
+ for(const x of rows){
+  const sec=mults?calibratedSecond(x.m,mults):secondConditional(x.m);
+  const b=x.order[1],c=x.order[2];
+  loss2-=Math.log(Math.max(1e-12,sec[b-2]));
+  const pairs=[];
+  for(let j=2;j<=6;j++)for(let k=2;k<=6;k++)if(k!==j)pairs.push({b:j,c:k,p:conditionalPair(x.m,j,k,sec)});
+  pairs.sort((a,b)=>b.p-a.p);
+  const correct=y=>y.b===b&&y.c===c;
+  lossPair-=Math.log(Math.max(1e-12,pairs.find(correct)?.p||0));
+  if(sec.map((p,i)=>({p,lane:i+2})).sort((a,b)=>b.p-a.p).slice(0,2).some(y=>y.lane===b))top2++;
+  if(pairs.slice(0,4).some(correct))top4++;
+  if(pairs.slice(0,6).some(correct))top6++;
+  if(pairs.slice(0,10).some(correct))top10++;
+ }
+ const n=rows.length;
+ return {n,loss2:loss2/n,lossPair:lossPair/n,top2:top2/n,top4:top4/n,top6:top6/n,top10:top10/n};
+}
+function fitSecondBias(rows){
+ // Observed/expected ratio with shrinkage towards 1. No evaluation-day labels used.
+ const observed=[0,0,0,0,0],expected=[0,0,0,0,0];
+ for(const x of rows){observed[x.order[1]-2]++;x.m.conditionalSecond.forEach((p,i)=>expected[i]+=p)}
+ const prior=30;
+ return expected.map((v,i)=>(observed[i]+prior)/(v+prior));
+}
+$('runOrderCalibration').addEventListener('click',async()=>{
+ const btn=$('runOrderCalibration'),box=$('orderCalibrationResult'),end=$('backEnd').value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end>=localDay()){box.textContent='最終日は昨日以前を指定してください。';return}
+ btn.disabled=true;box.textContent='7日分のデータを取得中…';
+ const days=Array.from({length:7},()=>[]);let missing=0,invalid=0;
+ try{
+  for(let i=0;i<7;i++){
+   const d=new Date(end+'T12:00:00');d.setDate(d.getDate()-6+i);
+   const ds=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+   box.textContent=`2着・3着を検証中：${i+1}/7日（${ds}）`;
+   const response=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+   if(!response.ok){missing++;continue}
+   const json=await response.json(),stadiums=json?.programs?.stadiums;
+   if(!stadiums){missing++;continue}
+   for(const [id,stadium] of Object.entries(stadiums)){
+    const name=names[Number(id)-1];if(!enabled.includes(name))continue;
+    for(const [num,rr] of Object.entries(stadium?.races||{})){
+     const order=getFinishOrder(rr),r=screenRace(rr,name,Number(num));
+     if(!order||!r){invalid++;continue}
+     const m=modelRace(r);if(!m){invalid++;continue}
+     if(order[0]===1)days[i].push({order,m});
+    }
+   }
+  }
+  const folds=[];
+  for(let day=4;day<7;day++){
+   const train=days.slice(day-4,day).flat(),test=days[day];
+   if(train.length<50||test.length<10){folds.push({day,missing:true});continue}
+   const mults=fitSecondBias(train);
+   folds.push({day,train:train.length,test:test.length,mults,raw:orderMetrics(test,null),adj:orderMetrics(test,mults),testRows:test});
+  }
+  const good=folds.filter(x=>!x.missing);
+  if(!good.length){box.textContent='学習期間または評価期間のデータが不足しています。';return}
+  const all=good.flatMap(x=>x.testRows);
+  // Aggregate test metrics by fold; each fold uses its own train-only parameters.
+  const aggregate=key=>good.reduce((a,x)=>a+x[key].lossPair*x.test,0)/all.length;
+  const average=(kind,key)=>good.reduce((a,x)=>a+x[kind][key]*x.test,0)/all.length;
+  const p=x=>(x*100).toFixed(1)+'%',n=x=>x.toFixed(4);
+  const compare=(label,key,asPct=false)=>`<div class="metric"><span>${label}</span><b>${asPct?p(average('raw',key)):n(average('raw',key))} → ${asPct?p(average('adj',key)):n(average('adj',key))}</b></div>`;
+  const foldHTML=folds.map(f=>f.missing?`<p class="sub">${f.day+1}日目：データ不足</p>`:`<div class="race"><strong>${f.day+1}日目（直前4日 ${f.train}R → 評価 ${f.test}R）</strong><p class="sub">2着補正倍率：${f.mults.map((v,i)=>`${i+2}号艇 ${v.toFixed(2)}`).join(' / ')}</p><div class="metric"><span>2着ログ損失</span><b>${n(f.raw.loss2)} → ${n(f.adj.loss2)}</b></div><div class="metric"><span>2・3着ログ損失</span><b>${n(f.raw.lossPair)} → ${n(f.adj.lossPair)}</b></div><div class="metric"><span>2・3着6点的中率</span><b>${p(f.raw.top6)} → ${p(f.adj.top6)}</b></div></div>`).join('');
+  const improved=good.filter(f=>f.adj.lossPair<f.raw.lossPair).length;
+  box.innerHTML=`<div class="race"><strong>WATER 9.0 2着・3着の時系列補正（参考値）</strong><p class="sub">直前4日間の1号艇1着レースだけで艇別2着補正を計算し、翌日の未使用レースで評価。3着の条件付き配分は維持します。評価日を変えて3回検証。</p><div class="metric"><span>評価対象（1号艇1着）</span><b>${all.length}R</b></div>${compare('2着ログ損失（低いほど良い）','loss2')}${compare('2・3着ログ損失（低いほど良い）','lossPair')}${compare('2着上位2艇 的中率','top2',true)}${compare('2・3着4点 的中率','top4',true)}${compare('2・3着6点 的中率','top6',true)}${compare('2・3着10点 的中率','top10',true)}<p class="sub">2・3着ログ損失の改善：${improved}/${good.length}日</p><p class="muted" style="font-size:12px">過去出走表の予想時点が未確認のため探索的な参考値です。7日間は以前の診断にも使用済みで、完全な独立検証ではありません。補正は2着の艇別倍率だけで、3着モデルは未調整です。通常予想・買い目には未反映。欠損日 ${missing}、対象外 ${invalid}。オッズ・回収率未評価、購入判断不可。</p></div>${foldHTML}`;
+ }catch(e){box.textContent='検証エラー：'+String(e?.message||e)}finally{btn.disabled=false}
+});
+
+
+// 9.1: conditional third-place lane biases learned separately for each second-place lane.
+// Fit only on earlier races. Third probabilities are normalized within each fixed second.
+function thirdCondition(m,b,c){
+ const p2=Math.max(1e-12,m.conditionalSecond[b-2]);
+ const joint=m.outcomes.find(o=>o.a===1&&o.b===b&&o.c===c)?.q||0;
+ return joint/(Math.max(1e-12,m.head[0])*p2);
+}
+function fitThirdBias(rows){
+ const observed=Array.from({length:5},()=>Array(5).fill(0));
+ const expected=Array.from({length:5},()=>Array(5).fill(0));
+ for(const x of rows){
+  const b=x.order[1],c=x.order[2];
+  observed[b-2][c-2]++;
+  for(let k=2;k<=6;k++)if(k!==b)expected[b-2][k-2]+=thirdCondition(x.m,b,k);
+ }
+ const prior=35;
+ return expected.map((arr,i)=>arr.map((v,j)=>i===j?0:(observed[i][j]+prior)/(v+prior)));
+}
+function pairMetricsThird(rows,secondMult,thirdMult){
+ let loss2=0,loss3=0,lossPair=0,top4=0,top6=0,top10=0,top20=0;
+ for(const x of rows){
+  const sec=secondMult?calibratedSecond(x.m,secondMult):secondConditional(x.m);
+  const pairs=[];
+  for(let b=2;b<=6;b++){
+   const third=[];
+   for(let c=2;c<=6;c++)if(c!==b)third.push({c,p:thirdCondition(x.m,b,c)*(thirdMult?thirdMult[b-2][c-2]:1)});
+   const z=third.reduce((t,v)=>t+v.p,0);
+   for(const t of third)pairs.push({b,c:t.c,p:sec[b-2]*t.p/z,third:t.p/z});
+  }
+  pairs.sort((a,b)=>b.p-a.p);
+  const b=x.order[1],c=x.order[2],hit=pairs.find(o=>o.b===b&&o.c===c);
+  loss2-=Math.log(Math.max(1e-12,sec[b-2]));
+  loss3-=Math.log(Math.max(1e-12,hit?.third||0));
+  lossPair-=Math.log(Math.max(1e-12,hit?.p||0));
+  const correct=o=>o.b===b&&o.c===c;
+  if(pairs.slice(0,4).some(correct))top4++;
+  if(pairs.slice(0,6).some(correct))top6++;
+  if(pairs.slice(0,10).some(correct))top10++;
+  if(pairs.slice(0,20).some(correct))top20++;
+ }
+ const n=rows.length;
+ return {n,loss2:loss2/n,loss3:loss3/n,lossPair:lossPair/n,top4:top4/n,top6:top6/n,top10:top10/n,top20:top20/n};
+}
+$('runThirdCalibration').addEventListener('click',async()=>{
+ const btn=$('runThirdCalibration'),box=$('thirdCalibrationResult'),end=$('backEnd').value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end>=localDay()){box.textContent='最終日は昨日以前を指定してください。';return}
+ btn.disabled=true;box.textContent='7日分のデータを取得しています…';
+ const days=Array.from({length:7},()=>[]);let missing=0,invalid=0;
+ try{
+  for(let i=0;i<7;i++){
+   const d=new Date(end+'T12:00:00');d.setDate(d.getDate()-6+i);
+   const ds=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+   box.textContent=`3着の条件付き補正を検証中：${i+1}/7日（${ds}）`;
+   const response=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+   if(!response.ok){missing++;continue}
+   const json=await response.json(),stadiums=json?.programs?.stadiums;
+   if(!stadiums){missing++;continue}
+   for(const [id,stadium] of Object.entries(stadiums)){
+    const name=names[Number(id)-1];if(!enabled.includes(name))continue;
+    for(const [num,rr] of Object.entries(stadium?.races||{})){
+     const order=getFinishOrder(rr),r=screenRace(rr,name,Number(num));
+     if(!order||!r){invalid++;continue}
+     const m=modelRace(r);if(!m){invalid++;continue}
+     if(order[0]===1)days[i].push({order,m});
+    }
+   }
+  }
+  const folds=[];
+  for(let day=4;day<7;day++){
+   const train=days.slice(day-4,day).flat(),test=days[day];
+   if(train.length<50||test.length<10){folds.push({day,missing:true});continue}
+   const second=fitSecondBias(train),third=fitThirdBias(train);
+   folds.push({day,train:train.length,test:test.length,
+    raw:pairMetricsThird(test,null,null),
+    second:pairMetricsThird(test,second,null),
+    both:pairMetricsThird(test,second,third)});
+  }
+  const good=folds.filter(f=>!f.missing);
+  if(!good.length){box.textContent='検証に必要なデータが不足しています。';return}
+  const total=good.reduce((t,f)=>t+f.test,0);
+  const avg=(kind,key)=>good.reduce((t,f)=>t+f[kind][key]*f.test,0)/total;
+  const pct=v=>(100*v).toFixed(1)+'%',dec=v=>v.toFixed(4);
+  const compare=(name,key,percentage=false)=>{
+   const fmt=percentage?pct:dec;
+   return `<div class="metric"><span>${name}</span><b>${fmt(avg('raw',key))} → ${fmt(avg('second',key))} → ${fmt(avg('both',key))}</b></div>`;
+  };
+  const foldHtml=folds.map(f=>f.missing?`<p class="sub">${f.day+1}日目：学習または評価データ不足</p>`:`<div class="race"><strong>${f.day+1}日目（直前4日 ${f.train}R → 評価 ${f.test}R）</strong><div class="metric"><span>3着ログ損失（2着確定後）</span><b>${dec(f.second.loss3)} → ${dec(f.both.loss3)}</b></div><div class="metric"><span>2・3着ログ損失</span><b>${dec(f.second.lossPair)} → ${dec(f.both.lossPair)}</b></div><div class="metric"><span>2・3着6点的中率</span><b>${pct(f.second.top6)} → ${pct(f.both.top6)}</b></div></div>`).join('');
+  const improved=good.filter(f=>f.both.lossPair<f.second.lossPair).length;
+  const betterTop6=good.filter(f=>f.both.top6>f.second.top6).length;
+  box.innerHTML=`<div class="race"><strong>WATER 9.2 3着の条件付き補正（参考値）</strong><p class="sub">1号艇1着の場合の2着・3着20通りを評価。3着の補正値は「2着が何号艇か」ごとに直前4日から推定し、翌日の未使用レースで評価します。3着候補4艇の合計は100%に再正規化します。</p><div class="metric"><span>評価対象（1号艇1着）</span><b>${total}R</b></div><p class="sub">比較順：補正なし → 2着のみ補正 → 2着と3着を補正</p>${compare('2着ログ損失','loss2')}${compare('3着ログ損失（2着確定後）','loss3')}${compare('2・3着ログ損失','lossPair')}${compare('2・3着4点的中率','top4',true)}${compare('2・3着6点的中率','top6',true)}${compare('2・3着10点的中率','top10',true)}<p class="sub">2着補正だけの場合に比べ、2・3着ログ損失が改善：${improved}/${good.length}日。6点的中率が改善：${betterTop6}/${good.length}日。</p><p class="muted" style="font-size:12px">過去の出走表の予想時点は未確認で、過去7日間は既存の開発・診断でも参照済みです。完全に独立した性能検証ではありません。通常予想・買い目は変更しません。欠損日 ${missing}、対象外 ${invalid}。オッズ・回収率は未評価で、購入判断には使用できません。</p></div>${foldHtml}`;
+ }catch(e){box.textContent='検証エラー：'+String(e?.message||e)}
+ finally{btn.disabled=false}
+});
+
+$('runOrderAudit').addEventListener('click',async()=>{
+ const btn=$('runOrderAudit'),box=$('orderAuditResult'),end=$('backEnd').value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end>=localDay()){box.textContent='最終日は昨日以前を指定してください。';return}
+ btn.disabled=true;box.textContent='過去7日分を取得中…';
+ const dayRows=Array.from({length:7},()=>[]),bad={fetch:0,finish:0,card:0,model:0};
+ try{
+  for(let i=0;i<7;i++){
+   const d=new Date(end+'T12:00:00');d.setDate(d.getDate()-6+i);
+   const ds=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+   box.textContent=`着順精度を確認中：${i+1}/7日（${ds}）`;
+   const response=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+   if(!response.ok){bad.fetch++;continue}
+   const json=await response.json(),stadiums=json?.programs?.stadiums;
+   if(!stadiums){bad.fetch++;continue}
+   for(const [id,stadium] of Object.entries(stadiums)){
+    const name=names[Number(id)-1];if(!enabled.includes(name))continue;
+    for(const [num,rr] of Object.entries(stadium?.races||{})){
+     const order=getFinishOrder(rr);if(!order){bad.finish++;continue}
+     const race=screenRace(rr,name,Number(num));if(!race){bad.card++;continue}
+     const m=modelRace(race);if(!m){bad.model++;continue}
+     dayRows[i].push({order,m});
+    }
+   }
+  }
+  const rows=dayRows.flat(),inside=rows.filter(x=>x.order[0]===1);
+  if(!inside.length){box.textContent='1号艇1着の有効なレースがありません。';return}
+  let secondTop1=0,secondTop2=0,secondTop3=0,pairTop1=0,pairTop4=0,pairTop6=0,pairTop10=0;
+  let secondBrier=0,secondLog=0,secondLogUniform=0,thirdLog=0,thirdLogUniform=0;
+  const secondStats=Array.from({length:5},(_,i)=>({lane:i+2,pred:0,actual:0}));
+  for(const {order,m} of inside){
+   const inOut=m.outcomes.filter(o=>o.a===1).slice().sort((a,b)=>b.q-a.q);
+   const second=Array.from({length:5},(_,i)=>({lane:i+2,p:m.conditionalSecond[i]})).sort((a,b)=>b.p-a.p);
+   const secondLane=order[1],thirdLane=order[2];
+   if(second[0].lane===secondLane)secondTop1++;
+   if(second.slice(0,2).some(x=>x.lane===secondLane))secondTop2++;
+   if(second.slice(0,3).some(x=>x.lane===secondLane))secondTop3++;
+   const correct=o=>o.b===secondLane&&o.c===thirdLane;
+   if(inOut.slice(0,1).some(correct))pairTop1++;
+   if(inOut.slice(0,4).some(correct))pairTop4++;
+   if(inOut.slice(0,6).some(correct))pairTop6++;
+   if(inOut.slice(0,10).some(correct))pairTop10++;
+   for(let i=0;i<5;i++){
+    const p=Math.max(1e-8,m.conditionalSecond[i]),y=secondLane===i+2?1:0;
+    secondBrier+=(p-y)**2;
+    secondStats[i].pred+=p;secondStats[i].actual+=y;
+   }
+   const p2=Math.max(1e-8,m.conditionalSecond[secondLane-2]);
+   secondLog-=Math.log(p2);secondLogUniform-=Math.log(1/5);
+   const pPair=Math.max(1e-8,inOut.find(correct)?.q/m.head[0]||0);
+   const pThird=Math.max(1e-8,pPair/p2);
+   thirdLog-=Math.log(pThird);thirdLogUniform-=Math.log(1/4);
+  }
+  const n=inside.length, pct=x=>(100*x/n).toFixed(1)+'%',dec=x=>x.toFixed(4);
+  const metrics=[['2着1点',secondTop1,20],['2着2点',secondTop2,40],['2着3点',secondTop3,60],['2・3着1点',pairTop1,5],['2・3着4点',pairTop4,20],['2・3着6点',pairTop6,30],['2・3着10点',pairTop10,50]];
+  const cells=metrics.map(([label,hits,random])=>`<div class="metric"><span>${label} 的中</span><b>${pct(hits)} <small style="font-weight:normal">（均等ランダム目安 ${random}%）</small></b></div>`).join('');
+  const lanes=secondStats.map(x=>`<div class="metric"><span>${x.lane}号艇2着</span><b>予測平均 ${(x.pred/n*100).toFixed(1)}% / 実際 ${(x.actual/n*100).toFixed(1)}%</b></div>`).join('');
+  box.innerHTML=`<div class="race"><strong>WATER 9.0 2着・3着精度診断（参考値）</strong><p class="sub">7日間の全有効 ${rows.length}Rのうち、実際に1号艇が1着だった ${n}Rだけで2着・3着を評価。補正前の条件付き着順モデルを検査しています。</p>${cells}<h3>条件付き確率の精度</h3><div class="metric"><span>2着・5艇の多クラスBrier（低いほど良い）</span><b>${dec(secondBrier/n)}</b></div><div class="metric"><span>2着ログ損失 / 均等基準</span><b>${dec(secondLog/n)} / ${dec(secondLogUniform/n)}</b></div><div class="metric"><span>2着確定後の3着ログ損失 / 均等基準</span><b>${dec(thirdLog/n)} / ${dec(thirdLogUniform/n)}</b></div><h3>2着の艇別評価</h3>${lanes}<p class="muted" style="font-size:12px">均等ランダム目安は、5艇から2着1艇・残り4艇から3着1艇を均等に選んだ場合の比較です。オッズ・回収率の比較ではありません。過去の出走表の予想時点が未確認で、検証結果を見てモデルを調整する前の探索的な参考評価です。欠損日 ${bad.fetch}、着順不足 ${bad.finish}、出走表不足 ${bad.card}、計算不可 ${bad.model}。通常予想と買い目は変更していません。</p></div>`;
+ }catch(e){box.textContent='検証エラー：'+String(e?.message||e)}finally{btn.disabled=false}
+});
+
+$('runRollingTest').addEventListener('click',async()=>{
+ const btn=$('runRollingTest'),box=$('rollingResult'),end=$('backEnd').value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end>=localDay()){box.textContent='最終日は昨日以前を指定してください。';return}
+ btn.disabled=true;box.textContent='7日分のデータを取得しています…';
+ const daily=Array.from({length:7},()=>[]), counts={download:0,missing:0,finish:0,program:0,model:0};
+ try{
+  for(let i=0;i<7;i++){
+   const dt=new Date(end+'T12:00:00');dt.setDate(dt.getDate()-6+i);
+   const ds=`${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}`;
+   box.textContent=`${i+1}/7日目（${ds}）を取得中…`;
+   const res=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+   if(!res.ok){counts.missing++;continue}
+   const json=await res.json(),stadiums=json?.programs?.stadiums;
+   if(!stadiums){counts.missing++;continue}
+   counts.download++;
+   for(const [id,stadium] of Object.entries(stadiums)){
+    const name=names[Number(id)-1];if(!enabled.includes(name))continue;
+    for(const [num,rr] of Object.entries(stadium?.races||{})){
+     const order=getFinishOrder(rr);if(!order){counts.finish++;continue}
+     const race=screenRace(rr,name,Number(num));if(!race){counts.program++;continue}
+     const model=modelRace(race);if(!model){counts.model++;continue}
+     daily[i].push({p:model.head[0],y:Number(order[0]===1)});
+    }
+   }
+  }
+  const fmt=x=>(x*100).toFixed(1)+'%',num=x=>x.toFixed(4);
+  const folds=[], allRaw=[],allAdj=[],allBase=[];
+  for(let day=4;day<=6;day++){
+   const train=daily.slice(day-4,day).flat(),test=daily[day];
+   if(!train.length||!test.length){folds.push({day,skipped:true});continue}
+   const offset=fitOffset(train);
+   const rate=(train.reduce((a,x)=>a+x.y,0)+.5)/(train.length+1);
+   const raw=scorePred(test,p=>p),adj=scorePred(test,p=>sigmoid(logit(p)+offset)),base=scorePred(test,()=>rate);
+   folds.push({day,train:train.length,test:test.length,offset,raw,adj,base});
+   for(const x of test){allRaw.push(x);allAdj.push({...x,p:sigmoid(logit(x.p)+offset)});allBase.push({...x,p:rate})}
+  }
+  if(!allRaw.length){box.textContent='検証に必要な学習日または評価日のデータが不足しています。';return}
+  const raw=scorePred(allRaw,x=>x),adj=scorePred(allAdj,x=>x),base=scorePred(allBase,x=>x);
+  const row=(label,sc)=>`<div class="metric"><span>${label}</span><b>Brier ${num(sc.brier)} / ログ損失 ${num(sc.loss)}</b></div>`;
+  const foldHtml=folds.map(f=>f.skipped?`<p class="sub">${f.day+1}日目：データ不足で評価不可</p>`:
+    `<div class="race"><b>${f.day+1}日目を評価（直前4日 ${f.train}Rで補正 / 評価 ${f.test}R）</b><p class="sub">実績 ${fmt(f.raw.hit)} / 補正前 ${fmt(f.raw.mean)} / 補正後 ${fmt(f.adj.mean)} / 補正係数 ${f.offset.toFixed(3)}</p>${row('補正前',f.raw)}${row('補正後',f.adj)}${row('学習期間の実績率だけを使う基準',f.base)}</div>`).join('');
+  const improved=folds.filter(f=>!f.skipped&&f.adj.brier<f.raw.brier).length;
+  const beatBase=folds.filter(f=>!f.skipped&&f.adj.brier<f.base.brier).length;
+  box.innerHTML=`<div class="race"><strong>WATER 8.7 複数期間の時系列検証（参考値）</strong><p class="sub">7日間のうち後半3日を1日ずつ検証。毎回、直前4日だけで補正係数を決めます。評価日の結果を学習に使用しません。取得成功 ${counts.download}/7日。</p><div class="metric"><span>評価レース合計</span><b>${allRaw.length}R</b></div><div class="metric"><span>評価3日間 実際の1号艇1着率</span><b>${fmt(raw.hit)}</b></div><div class="metric"><span>補正前 → 補正後の予測平均</span><b>${fmt(raw.mean)} → ${fmt(adj.mean)}</b></div>${row('補正前・全体',raw)}${row('補正後・全体',adj)}${row('学習期間の実績率のみ・全体',base)}<p class="sub">Brier改善 ${improved}/${folds.filter(f=>!f.skipped).length}日、学習期間の実績率基準を上回る ${beatBase}/${folds.filter(f=>!f.skipped).length}日。</p><p class="muted" style="font-size:12px">各日の評価対象が重複しない集計です。比較基準の実績率は必ず評価日より前の4日間から計算しています。データの予想時点の真正性は未確認であり、参考検証です。3連単・買い目・通常予想は変更していません。購入判断には使用できません。欠損日 ${counts.missing}、着順不足 ${counts.finish}、出走表不足 ${counts.program}、計算不可 ${counts.model}。</p></div>${foldHtml}`;
+ }catch(e){box.textContent='検証エラー：'+String(e?.message||e)}
+ finally{btn.disabled=false}
+});
+
+$('runSplitTest').addEventListener('click',async()=>{
+ const btn=$('runSplitTest'),box=$('splitResult'),end=$('backEnd').value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end>=localDay()){box.textContent='最終日は昨日以前を指定してください。';return}
+ btn.disabled=true;box.textContent='7日分のデータを取得し、前半5日・後半2日に分割しています…';
+ const train=[],test=[],counts={download:0,missing:0,finish:0,program:0,model:0,excluded:0};
+ try{
+  for(let d=6;d>=0;d--){
+   const dt=new Date(end+'T12:00:00');dt.setDate(dt.getDate()-d);
+   const ds=`${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}`;
+   box.textContent=`${7-d}/7日目（${ds}）を取得中…`;
+   const res=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+   if(!res.ok){counts.missing++;continue}
+   const json=await res.json(),stadiums=json?.programs?.stadiums;
+   if(!stadiums){counts.missing++;continue}
+   counts.download++;
+   for(const [id,stadium] of Object.entries(stadiums)){
+    const name=names[Number(id)-1];if(!enabled.includes(name))continue;
+    for(const [num,rr] of Object.entries(stadium?.races||{})){
+     const order=getFinishOrder(rr);if(!order){counts.finish++;continue}
+     const race=screenRace(rr,name,Number(num));if(!race){counts.program++;continue}
+     const model=modelRace(race);if(!model){counts.model++;continue}
+     (d>=2?train:test).push({p:model.head[0],y:Number(order[0]===1)});
+    }
+   }
+  }
+  if(!train.length||!test.length){box.innerHTML=`<p class="warn">学習用${train.length}件・検証用${test.length}件。両方にデータが必要です。取得成功${counts.download}/7日。</p>`;return}
+  const offset=fitOffset(train);
+  const rawTrain=scorePred(train,x=>x),rawTest=scorePred(test,x=>x),adjTrain=scorePred(train,x=>sigmoid(logit(x)+offset)),adjTest=scorePred(test,x=>sigmoid(logit(x)+offset));
+  const fmt=x=>(100*x).toFixed(1)+'%',num=x=>x.toFixed(4);
+  box.innerHTML=`<div class="race"><strong>WATER 8.6 時系列分割テスト（参考値）</strong><p class="sub">前半5日：補正用 ${train.length}R ／ 後半2日：未使用データで評価 ${test.length}R。取得成功 ${counts.download}/7日。</p><p class="sub">補正は1号艇1着の対数オッズに一定値 ${offset.toFixed(3)} を加える方式。係数は前半5日だけで決定し、後半2日の結果では変更しません。</p><div class="metric"><span>後半2日 実際の1号艇1着</span><b>${fmt(rawTest.hit)}</b></div><div class="metric"><span>後半2日 補正前の予測平均</span><b>${fmt(rawTest.mean)}</b></div><div class="metric"><span>後半2日 補正後の予測平均</span><b>${fmt(adjTest.mean)}</b></div><div class="metric"><span>後半2日 Brier（補正前→後）</span><b>${num(rawTest.brier)} → ${num(adjTest.brier)}</b></div><div class="metric"><span>後半2日 ログ損失（補正前→後）</span><b>${num(rawTest.loss)} → ${num(adjTest.loss)}</b></div><p class="sub">前半5日：実際 ${fmt(rawTrain.hit)} ／ 補正前 ${fmt(rawTrain.mean)} ／ 補正後 ${fmt(adjTrain.mean)}</p><p class="muted" style="font-size:12px">この補正は1着確率のみを対象とします。3連単120通りの配分・買い目・自動比較画面は変更しません。過去出走表の数値が当時のレース前の値か未確認のため、後半2日の成績も正式な予測性能ではありません。オッズ・回収率・購入判断には利用できません。着順不足${counts.finish}件、出走データ不足${counts.program}件、計算不可${counts.model}件。</p></div>`;
+ }catch(e){box.textContent='検証エラー：'+String(e?.message||e)}
+ finally{btn.disabled=false}
+});
+
+$('runBacktest').addEventListener('click',async()=>{
+ const btn=$('runBacktest'),status=$('backStatus'),out=$('backResult');
+ const end=$('backEnd').value,days=Number($('backDays').value);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(end)){status.textContent='検証最終日を選択してください';return}
+ if(end>=localDay()){status.textContent='検証最終日は昨日以前を指定してください';return}
+ btn.disabled=true;$('exportAudit').disabled=true;auditRows=[];out.innerHTML='';let provenanceExcluded=0;const allowUnverified=$('allowUnverified').checked;let checked=0,files=0,missing=0,skipped=0,missingResults=0,missingProgram=0,missingModel=0,winPred=0,winHit=0,brier=0,top6=0,exact=0,logloss=0,baselineBrier=0,baselineLogloss=0;
+ const bins=Array.from({length:5},()=>({n:0,pred:0,hit:0}));
+ try{
+  for(let d=days-1;d>=0;d--){
+   const dt=new Date(end+'T12:00:00');dt.setDate(dt.getDate()-d);
+   const ds=`${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}`;
+   status.textContent=`${days-d}/${days}日目（${ds}）を確認中…`;
+   try{
+    const res=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+    if(!res.ok){missing++;auditRows.push({date:ds,status:'取得失敗',reason:'HTTP '+res.status});continue}
+    const json=await res.json(),stadiums=json?.programs?.stadiums;
+    if(!stadiums){missing++;auditRows.push({date:ds,status:'形式不一致',reason:'programs.stadiums が存在しない'});continue}files++;
+    for(const [id,stadium] of Object.entries(stadiums)){
+     const name=names[Number(id)-1];if(!enabled.includes(name))continue;
+     for(const [num,rr] of Object.entries(stadium?.races||{})){
+      const order=getFinishOrder(rr);if(!order){skipped++;missingResults++;auditRows.push({date:ds,venue:name,race:num,status:'除外',reason:'着順不足'});continue}
+      const r=screenRace(rr,name,Number(num));if(!r){skipped++;missingProgram++;auditRows.push({date:ds,venue:name,race:num,status:'除外',reason:'出走データ不足'});continue}
+      if(!allowUnverified){provenanceExcluded++;auditRows.push({date:ds,venue:name,race:num,status:'除外',data_provenance:'未確認',reason:'予想時点の入力データと確認できない'});continue}
+      const m=modelRace(r);if(!m){skipped++;missingModel++;auditRows.push({date:ds,venue:name,race:num,status:'除外',reason:'モデル計算不可'});continue}
+      const actual=order[0]===1?1:0,p=m.head[0];
+      auditRows.push({date:ds,venue:name,race:num,status:'参考集計',data_provenance:'未確認',predicted_in:p.toFixed(6),actual_in:actual,actual_order:order.join('-')});checked++;winPred+=p;winHit+=actual;brier+=(p-actual)**2;
+      const safeP=Math.max(1e-8,Math.min(1-1e-8,p));
+      logloss-=actual*Math.log(safeP)+(1-actual)*Math.log(1-safeP);
+      // Reference baseline calculated from the same observed sample, shown only as diagnostic.
+      
+      const bin=Math.min(4,Math.floor(p*5));bins[bin].n++;bins[bin].pred+=p;bins[bin].hit+=actual;
+      const match=m.outcomes.find(x=>x.a===order[0]&&x.b===order[1]&&x.c===order[2]);
+      if(match){exact+=match.q;if(m.top.some(x=>x===match))top6++}
+     }
+    }
+   }catch(err){missing++;auditRows.push({date:ds,status:'取得・解析失敗',reason:String(err?.message||err)})}
+  }
+  $('exportAudit').disabled=!auditRows.length;
+  status.textContent=`検証終了：${files}/${days}日分のデータを取得、${checked}レースを集計。`;
+  if(!checked){out.innerHTML=`<p class="warn">検証できるレースがありませんでした。取得成功 ${files}日、取得不可 ${missing}日、着順不足 ${missingResults}件、出走データ不足 ${missingProgram}件、計算不可 ${missingModel}件、時点未確認による除外 ${provenanceExcluded}件。公開データの構造を確認する必要があります。</p>`;return}
+  // Same-sample reference: diagnostic only, not an out-of-sample benchmark.
+  const baseP=Math.max(1e-8,Math.min(1-1e-8,winHit/checked));
+  baselineBrier=winHit*(1-baseP)**2+(checked-winHit)*baseP**2;
+  baselineLogloss=-winHit*Math.log(baseP)-(checked-winHit)*Math.log(1-baseP);
+  const pct=x=>(100*x).toFixed(1)+'%';
+  out.innerHTML=`<div class="race"><strong>集計結果（過去データ上の暫定評価）</strong><div class="metric"><span>検証対象</span><b>${checked}レース</b></div><div class="metric"><span>イン1着・モデル平均配分</span><b>${pct(winPred/checked)}</b></div><div class="metric"><span>イン1着・実際の割合</span><b>${pct(winHit/checked)}</b></div><div class="metric"><span>イン1着Brierスコア（低いほど良い）</span><b>${(brier/checked).toFixed(4)}</b></div><div class="metric"><span>同期間の実績率を使う参考Brier</span><b>${(baselineBrier/checked).toFixed(4)}</b></div><div class="metric"><span>イン1着ログ損失（低いほど良い）</span><b>${(logloss/checked).toFixed(4)}</b></div><div class="metric"><span>同期間の実績率を使う参考ログ損失</span><b>${(baselineLogloss/checked).toFixed(4)}</b></div><div class="metric"><span>3連単上位6通りの的中率</span><b>${pct(top6/checked)}</b></div><div class="metric"><span>実際の3連単へのモデル平均割当</span><b>${pct(exact/checked)}</b></div><p class="muted" style="font-size:12px">データ取得不可：${missing}日、除外：${skipped}レース（確定着順不足 ${missingResults}件、出走データ不足 ${missingProgram}件、計算不可 ${missingModel}件、時点未確認 ${provenanceExcluded}件）。購入資金・オッズは未評価。参考基準は同期間の結果から算出しており、将来予測との公平な比較ではありません。履歴出走表の数値が当時の予想時点の数値だったかは未確認です。したがって、この結果は参考検査であり、投資判断や精度の証明には使えません。</p></div><div class="race"><strong>イン1着の予測配分帯別</strong>${bins.map((b,i)=>`<div class="metric" style="display:block"><b>${i*20}〜${(i+1)*20}%帯</b><div class="sub">${binSummary(b)}</div></div>`).join('')}</div>`;
+ }catch(err){
+  $('exportAudit').disabled=!auditRows.length;
+  status.textContent='検証処理が中断しました：'+(err?.message||String(err));
+  out.innerHTML='<p class="warn">結果は確定していません。通信状況・データ形式を確認してください。</p>';
+ }finally{btn.disabled=false}
+});
+
+
+// WATER 9.4 experimental engine: explicit place-conditional scores, never silently replace 9.3.
+const WATER94_FIELDS={
+ first:['course_first_rate','course_win_rate','course_1st_rate','course_1st_percent','course_first_percent','course_1st_percentage'],
+ second:['course_second_rate','course_2nd_rate','course_2nd_percent','course_second_percent','course_2nd_percentage'],
+ third:['course_third_rate','course_3rd_rate','course_3rd_percent','course_third_percent','course_3rd_percentage'],
+ count:['course_race_count','course_starts','course_total','course_count','course_runs']
+};
+function water94Rate(r,keys){
+ for(const k of keys){const v=finite(r?.[k]);if(v!==null&&v>=0&&v<=100)return {value:v>1?v/100:v,key:k}}
+ return null;
+}
+function water94Inspect(races){
+ const all=races.flatMap(r=>r.racers||[]),found={};
+ for(const [kind,keys] of Object.entries(WATER94_FIELDS)){
+  const entries=all.map(r=>water94Rate(r,keys)).filter(Boolean);
+  found[kind]={count:entries.length,keys:[...new Set(entries.map(e=>e.key))]};
+ }
+ const sample=all[0]||{};
+ return {athletes:all.length,found,availableKeys:Object.keys(sample)};
+}
+// Uses known pre-race fields, plus optional course-specific rates only when genuinely present.
+// Regularized course statistics avoid treating a handful of starts as a reliable 80% rate.
+function water94Model(r){
+ const base=modelRace(r);if(!base)return null;
+ const players=r.racers;
+ const rates=players.map((x,i)=>{
+  const raw=[water94Rate(x,WATER94_FIELDS.first),water94Rate(x,WATER94_FIELDS.second),water94Rate(x,WATER94_FIELDS.third)];
+  const count=WATER94_FIELDS.count.map(k=>finite(x?.[k])).find(v=>v!==null&&v>=0);
+  // Count is not used unless raw count is accessible; otherwise conservative shrinkage.
+  const n=Number.isFinite(count)?count:null;
+  const trust=n===null?.20:Math.min(.85,n/(n+35));
+  const prior=[[.57,.17,.12],[.11,.29,.23],[.10,.25,.24],[.07,.18,.23],[.04,.12,.17],[.02,.07,.12]][i];
+  return raw.map((v,j)=>v?Math.max(.015,Math.min(.95,prior[j]*(1-trust)+v.value*trust)):null);
+ });
+ const strength=players.map((x,i)=>{
+  const win=finite(x.national_win_rate),st=finite(x.average_start_timing),motor=finite(x.motor_top_2_percent);
+  return Math.exp(Math.max(-1.4,Math.min(1.4,((win===null?5.5:win)-5.5)*.22+(.17-(st===null?.17:st))*2.5+(motor===null?0:(motor-35)*.008))));
+ });
+ const lane=[1.95,1.20,1,.81,.65,.51];
+ const stage=(i,j)=>{
+  const v=rates[i][j];
+  // Position-specific priors and observed course rates; coefficients are exploratory.
+  const priors=[[.57,.17,.12],[.11,.29,.23],[.10,.25,.24],[.07,.18,.23],[.04,.12,.17],[.02,.07,.12]];
+  const relative=v===null?1:Math.exp(Math.max(-.7,Math.min(.7,Math.log(v/priors[i][j])*.65)));
+  return strength[i]*Math.pow(lane[i],j===0?1:j===1?.55:.25)*relative;
+ };
+ const outcomes=[];let sum=0;
+ for(let a=0;a<6;a++)for(let b=0;b<6;b++)if(a!==b)for(let c=0;c<6;c++)if(c!==a&&c!==b){
+  let first=stage(a,0),second=stage(b,1),third=stage(c,2);
+  // Exploratory interaction: a strong early 3/4-lane challenger can reduce 2-lane hold.
+  const attack=(a===0&&b===1)?Math.max(.80,1-.07*Math.max(0,strength[2]-strength[1])):1;
+  const q=first*second*third*attack;
+  outcomes.push({a:a+1,b:b+1,c:c+1,q});sum+=q;
+ }
+ outcomes.forEach(x=>x.q/=sum);outcomes.sort((a,b)=>b.q-a.q);
+ const head=Array.from({length:6},(_,i)=>outcomes.filter(x=>x.a===i+1).reduce((t,x)=>t+x.q,0));
+ const conditionalSecond=Array.from({length:5},(_,i)=>outcomes.filter(x=>x.a===1&&x.b===i+2).reduce((t,x)=>t+x.q,0)/head[0]);
+ return {head,conditionalSecond,outcomes,top:outcomes.slice(0,6),courseData:rates.flat().filter(x=>x!==null).length};
+}
+function water94Compare(){
+ const status=$('modelLabStatus'),out=$('modelLabResults');
+ if(!programCandidates.length){status.textContent='先に②で出走表を取得してください。';return}
+ const rows=programCandidates.slice(0,10).map(r=>({r,old:currentModel(r),experimental:water94Model(r)})).filter(x=>x.old&&x.experimental);
+ if(!rows.length){status.textContent='比較可能なレースがありません。';return}
+ const inspection=water94Inspect(programCandidates),f=inspection.found;
+ status.textContent=`${rows.length}レースを比較。コース別着順率：1着 ${f.first.count}/${inspection.athletes}艇、2着 ${f.second.count}/${inspection.athletes}艇、3着 ${f.third.count}/${inspection.athletes}艇。`;
+ const pick4=m=>m.outcomes.slice(0,4).map(x=>`${x.a}-${x.b}-${x.c}`);
+ out.innerHTML=`<div class="hint">取得データの主な項目：${escapeHtml(inspection.availableKeys.join('、'))}<br>コース別成績の取得項目：${escapeHtml(['first','second','third'].map(k=>`${k}=${f[k].keys.join('/')||'未検出'}`).join(' ／ '))}<br><strong>注意：</strong>これは予測の違いを比較する機能です。結果を使った精度検証ではありません。コース別率が未取得なら、推定値で代用しており、精度改善は主張できません。</div>`+
+ rows.map(({r,old,experimental})=>{
+  const a=pick4(old),b=pick4(experimental),common=b.filter(x=>a.includes(x)).length;
+  const top=x=>x.map(y=>`<code>${y}</code>`).join('　');
+  return `<div class="race"><strong>${escapeHtml(r.place)} ${r.num}R</strong><div class="sub">旧モデル 1号艇1着 ${(old.head[0]*100).toFixed(1)}% ／ 新モデル ${(experimental.head[0]*100).toFixed(1)}% ／ 共通 ${common}/4点 ／ コース別データ ${experimental.courseData}/18項目</div><p class="sub">旧4点：${top(a)}</p><p class="sub">新4点：${top(b)}</p></div>`;
+ }).join('');
+}
+$('runModelLab').onclick=water94Compare;
+
+// WATER 9.3: immutable browser-side pre-result prediction snapshots.
+const SNAP_KEY='water93_snapshots_v1';
+function getSnapshots(){try{const a=JSON.parse(localStorage.getItem(SNAP_KEY)||'[]');return Array.isArray(a)?a:[]}catch(e){return []}}
+function putSnapshots(a){localStorage.setItem(SNAP_KEY,JSON.stringify(a))}
+function validSnapshot(x){return x&&/^\d{4}-\d{2}-\d{2}$/.test(x.day)&&names.includes(x.place)&&Number.isInteger(x.num)&&x.num>=1&&x.num<=12&&Array.isArray(x.outcomes)&&x.outcomes.length===120&&x.outcomes.every(y=>[y.a,y.b,y.c].every(n=>Number.isInteger(n)&&n>=1&&n<=6)&&new Set([y.a,y.b,y.c]).size===3&&Number.isFinite(y.q)&&y.q>=0)&&Math.abs(x.outcomes.reduce((t,y)=>t+y.q,0)-1)<1e-5}
+function drawSnapshots(){
+ const a=getSnapshots(),target=$('snapshotResults');
+ if(!a.length){target.innerHTML='<p class="muted">保存した予想はありません。</p>';return}
+ const matched=a.filter(x=>x.result?.order?.length===3), hit=(n)=>matched.filter(x=>x.outcomes.slice().sort((u,v)=>v.q-u.q).slice(0,n).some(y=>[y.a,y.b,y.c].join('-')===x.result.order.join('-'))).length;
+ let summary=`<div class="hint">保存済み ${a.length}レース／結果照合済み ${matched.length}レース。`;
+ if(matched.length){let b=0,loss=0;for(const x of matched){const p=x.outcomes.find(y=>[y.a,y.b,y.c].join('-')===x.result.order.join('-'))?.q||0;loss-=Math.log(Math.max(1e-12,p));b+=(x.outcomes.filter(y=>y.a===1).reduce((t,y)=>t+y.q,0)-(x.result.order[0]===1?1:0))**2}summary+=`<br>3連単上位4点 ${hit(4)}/${matched.length}・6点 ${hit(6)}/${matched.length}・10点 ${hit(10)}/${matched.length}。1号艇1着Brier ${(b/matched.length).toFixed(4)}／3連単ログ損失 ${(loss/matched.length).toFixed(4)}。`}
+ summary+='</div>';
+ target.innerHTML=summary+a.slice().reverse().map(x=>{const top=x.outcomes.slice().sort((u,v)=>v.q-u.q).slice(0,6).map(y=>`${y.a}-${y.b}-${y.c} ${(y.q*100).toFixed(1)}%`).join(' ／ ');return `<div class="race"><strong>${escapeHtml(x.day)} ${escapeHtml(x.place)} ${x.num}R</strong><div class="sub">保存 ${escapeHtml(x.savedAt)}／${x.prospective?'翌日以降に保存':'時点未確認'}／${x.calibrated?'1着・2着補正あり':'未補正'}</div><div class="sub">1号艇1着 ${(x.head1*100).toFixed(1)}% ／ 上位6点 ${top}</div><div class="sub">${x.result?'確定着順 '+escapeHtml(x.result.order.join('-'))+' ／ 上位6点 '+(x.outcomes.slice().sort((u,v)=>v.q-u.q).slice(0,6).some(y=>[y.a,y.b,y.c].join('-')===x.result.order.join('-'))?'的中':'不的中'):'結果未照合'}</div></div>`}).join('');
+}
+$('saveSnapshot').onclick=()=>{
+ const day=$('day').value;if(!programCandidates.length){$('snapshotStatus').textContent='先に出走表を取得してください。';return}
+ const prospective=day>localDay();const candidates=programCandidates.filter(r=>currentModel(r)).slice(0,10);if(!candidates.length){$('snapshotStatus').textContent='計算可能なレースがありません。';return}
+ const existing=getSnapshots(),now=new Date().toISOString();let added=0,skipped=0;
+ for(const r of candidates){const id=`${day}_${r.place}_${r.num}`;if(existing.some(x=>x.id===id)){skipped++;continue}const m=currentModel(r);const x={schema:1,id,day,place:r.place,num:r.num,savedAt:now,prospective,calibrated:activeCalibration?.day===day&&!!activeCalibration.secondBias,calibration:activeCalibration?.day===day?{offset:activeCalibration.offset,secondBias:activeCalibration.secondBias}:null,head1:m.head[0],outcomes:m.outcomes.map(y=>({a:y.a,b:y.b,c:y.c,q:y.q})),racers:r.racers.map(y=>({name:y.name,national_win_rate:y.national_win_rate,average_start_timing:y.average_start_timing,motor_top_2_percent:y.motor_top_2_percent}))};if(!validSnapshot(x))continue;existing.push(x);added++}
+ try{putSnapshots(existing);$('snapshotStatus').textContent=`${added}レース保存しました（重複 ${skipped}件）。${prospective?'対象日が翌日以降です。':'当日以前のため時点未確認扱いです。'} 同じレースの予測は上書きしません。`;drawSnapshots()}catch(e){$('snapshotStatus').textContent='保存失敗：容量不足などが考えられます。JSONバックアップを確認してください。'}
+};
+$('verifySnapshots').onclick=async()=>{
+ const btn=$('verifySnapshots'),a=getSnapshots(),pending=a.filter(x=>!x.result);if(!pending.length){$('snapshotStatus').textContent='照合待ちの予想がありません。';return}btn.disabled=true;let done=0,unavailable=0;
+ try{for(const day of [...new Set(pending.map(x=>x.day))]){
+  $('snapshotStatus').textContent=`${day} の結果を確認しています…`;
+  try{const ds=day.replaceAll('-',''),resp=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});if(!resp.ok)throw Error('HTTP '+resp.status);const payload=await resp.json();for(const x of pending.filter(x=>x.day===day)){const id=names.indexOf(x.place)+1;const rr=payload?.programs?.stadiums?.[String(id)]?.races?.[String(x.num)];const order=rr?getFinishOrder(rr):null;if(order&&order.length===3){x.result={order,verifiedAt:new Date().toISOString()};done++}else unavailable++}}
+  catch(e){unavailable+=pending.filter(x=>x.day===day).length}
+ }putSnapshots(a);$('snapshotStatus').textContent=`照合完了：${done}件に着順を記録、${unavailable}件は未確定・取得不可。予測配分は変更していません。`;drawSnapshots()}
+ finally{btn.disabled=false}
+};
+$('backupSnapshots').onclick=()=>{const a=getSnapshots(),blob=new Blob([JSON.stringify({format:'WATER93_SNAPSHOTS',exportedAt:new Date().toISOString(),snapshots:a},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='water93_predictions.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1500)};
+$('importSnapshots').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const obj=JSON.parse(await f.text());if(obj.format!=='WATER93_SNAPSHOTS'||!Array.isArray(obj.snapshots)||!obj.snapshots.every(validSnapshot))throw Error('WATER 9.3形式の履歴ではありません');const a=getSnapshots(),ids=new Set(a.map(x=>x.id));let n=0;for(const x of obj.snapshots){if(ids.has(x.id))continue;a.push(x);ids.add(x.id);n++}putSnapshots(a);$('snapshotStatus').textContent=`履歴を${n}件取り込みました。既存予想は上書きしていません。`;drawSnapshots()}catch(err){$('snapshotStatus').textContent='読み込み失敗：'+err.message}e.target.value=''};
+drawSnapshots();
+
+// WATER 10.3: inspect the *raw* source schema; never infer personal course records from lane priors.
+function course103Scan(stadiums){
+ const racerFields=new Map(),nestedFields=new Map(),examples=[];
+ let races=0,athletes=0,exactFirst=0,exactSecond=0,exactThird=0,exactCount=0;
+ const markers=/(course|waku|lane|枠|コース|着率|着順|進入)/i;
+ for(const stadium of Object.values(stadiums||{}))for(const rr of Object.values(stadium?.races||{})){
+  races++;
+  for(const racer of Object.values(rr?.racers||{})){
+   if(!racer||typeof racer!=='object')continue;
+   athletes++;
+   for(const [k,v] of Object.entries(racer)){
+    racerFields.set(k,(racerFields.get(k)||0)+1);
+    if(v&&typeof v==='object')for(const nk of Object.keys(v)){
+     const path=k+'.'+nk;nestedFields.set(path,(nestedFields.get(path)||0)+1);
+    }
+   }
+   if(water94Rate(racer,WATER94_FIELDS.first))exactFirst++;
+   if(water94Rate(racer,WATER94_FIELDS.second))exactSecond++;
+   if(water94Rate(racer,WATER94_FIELDS.third))exactThird++;
+   if(WATER94_FIELDS.count.some(k=>finite(racer[k])!==null))exactCount++;
+   if(examples.length<2)examples.push(Object.keys(racer));
+  }
+ }
+ const likely=[...racerFields,...nestedFields].filter(([k])=>markers.test(k)).sort((a,b)=>b[1]-a[1]).slice(0,35);
+ return {races,athletes,exactFirst,exactSecond,exactThird,exactCount,likely,examples};
+}
+$('runCourse103').onclick=async()=>{
+ const btn=$('runCourse103'),status=$('course103Status'),out=$('course103Result');
+ const ds=$('day').value.replaceAll('-','');
+ if(!/^\d{8}$/.test(ds)){status.textContent='①で対象日を設定してください。';return}
+ btn.disabled=true;status.textContent='公開JSONの項目構造を取得・監査しています…';out.innerHTML='';
+ try{
+  const res=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  const payload=await res.json(),stadiums=payload?.programs?.stadiums;
+  if(!stadiums)throw Error('出走表データがありません');
+  const a=course103Scan(stadiums);
+  status.textContent=`監査完了：${a.races}レース、${a.athletes}艇のデータ構造を確認`;
+  out.innerHTML=`<div class="race"><strong>個人コース別の直接取得状況</strong>
+   <div class="metric"><span>1着率</span><b>${a.exactFirst}/${a.athletes}艇</b></div>
+   <div class="metric"><span>2着率</span><b>${a.exactSecond}/${a.athletes}艇</b></div>
+   <div class="metric"><span>3着率</span><b>${a.exactThird}/${a.athletes}艇</b></div>
+   <div class="metric"><span>出走回数</span><b>${a.exactCount}/${a.athletes}艇</b></div>
+   <p class="muted">上記は現在のアプリが認識する項目名による判定です。0件は、別名・別構造のデータが存在しないことまで証明しません。</p></div>
+   <div class="race"><strong>コース・枠関連と思われるキー（最大35件）</strong><p class="muted">${a.likely.length?a.likely.map(([k,n])=>escapeHtml(k)+' ('+n+')').join(' ／ '):'候補なし'}</p>
+   <details><summary>元データの選手項目名を確認</summary><p class="muted">${escapeHtml((a.examples[0]||[]).join(' ／ '))}</p></details></div>`;
+ }catch(e){status.textContent='監査失敗：'+String(e?.message||e)}finally{btn.disabled=false}
+};
+
+// WATER 10.1: learn ordered (second, third) pairs ONLY on earlier training races.
+// Strong smoothing to avoid chasing rare combinations. No future result is an input.
+function fitOrderedPairBias(training, offset, secondBias){
+ const observed=Array.from({length:5},()=>Array(5).fill(0));
+ const expected=Array.from({length:5},()=>Array(5).fill(0));
+ let count=0;
+ for(const x of training){
+  if(x.order[0]!==1)continue;
+  const first=calibrateDistribution(x.base,offset);
+  const m=secondBias?integrateSecondDistribution(first,secondBias):first;
+  if(!m||m.head[0]<=0)continue;
+  count++;
+  for(const o of m.outcomes){if(o.a===1)expected[o.b-2][o.c-2]+=o.q/m.head[0]}
+  observed[x.order[1]-2][x.order[2]-2]++;
+ }
+ const prior=24; // per-pair pseudo-counts: conservative shrinkage
+ const factor=expected.map((row,i)=>row.map((v,j)=>i===j?1:(observed[i][j]+prior)/(v+prior)));
+ return {factor,count,prior};
+}
+function orderedPairModel(cal,pairFit){
+ if(!cal||!pairFit||pairFit.count<30)return cal;
+ const outcome=cal.outcomes.map(o=>({...o,q:o.q*(o.a===1?pairFit.factor[o.b-2][o.c-2]:1)}));
+ // Preserve P(1st=1) and P(other first) exactly; only adjust conditional pairs.
+ const old=cal.head[0],newMass=outcome.filter(o=>o.a===1).reduce((t,o)=>t+o.q,0);
+ for(const o of outcome)if(o.a===1)o.q*=old/newMass;
+ outcome.sort((a,b)=>b.q-a.q);
+ const head=Array.from({length:6},(_,i)=>outcome.filter(o=>o.a===i+1).reduce((t,o)=>t+o.q,0));
+ const conditionalSecond=Array.from({length:5},(_,i)=>outcome.filter(o=>o.a===1&&o.b===i+2).reduce((t,o)=>t+o.q,0)/head[0]);
+ return {...cal,outcomes:outcome,head,conditionalSecond,top:outcome.slice(0,6),pairLearned:pairFit.count};
+}
+
+// WATER 10.6: conditional third-place calibration, preserving the first and second marginals.
+// Each second-lane row is smoothed separately; no evaluation result enters fitting.
+// WATER 10.7: row-conditional empirical-Bayes estimator.
+// Expected conditional distribution is aggregated over the training races' PRE-RESULT model predictions.
+// Each observed second-place lane has its own baseline distribution and sample size.
+function fitConditionalThird106(training,offset,secondBias){
+ const observed=Array.from({length:5},()=>Array(5).fill(0));
+ const expected=Array.from({length:5},()=>Array(5).fill(0));
+ const counts=Array(5).fill(0);
+ for(const x of training){
+  if(x.order[0]!==1)continue;
+  const first=calibrateDistribution(x.base,offset);
+  const m=secondBias?integrateSecondDistribution(first,secondBias):first;
+  if(!m||!(m.head[0]>0))continue;
+  const b=x.order[1]-2,c=x.order[2]-2;
+  if(b<0||b>4||c<0||c>4||b===c)continue;
+  const row=m.outcomes.filter(o=>o.a===1&&o.b===b+2);
+  const rowMass=row.reduce((z,o)=>z+o.q,0);
+  if(!(rowMass>0))continue;
+  counts[b]++;observed[b][c]++;
+  for(const o of row)expected[b][o.c-2]+=o.q/rowMass;
+ }
+ const prior=60; // 60 pseudo-races per second-place lane; no tuning on evaluation set.
+ const factors=observed.map((row,b)=>row.map((v,c)=>{
+  if(b===c||!counts[b])return 1;
+  const baseline=Math.max(1e-8,expected[b][c]/counts[b]);
+  const posterior=(v+prior*baseline)/(counts[b]+prior);
+  return Math.max(.5,Math.min(2,posterior/baseline));
+ }));
+ return {factors,counts,strength:prior,method:'Dirichlet-shrinkage-v10.7'};
+}
+function conditionalThirdModel106(cal,fit){
+ if(!cal||!fit)return cal;
+ const outcome=cal.outcomes.map(o=>({...o}));
+ for(let b=2;b<=6;b++){
+  const row=outcome.filter(o=>o.a===1&&o.b===b),before=row.reduce((t,o)=>t+o.q,0);
+  if(before<=0||fit.counts[b-2]<12)continue;
+  for(const o of row)o.q*=fit.factors[b-2][o.c-2];
+  const after=row.reduce((t,o)=>t+o.q,0);
+  if(after>0)for(const o of row)o.q*=before/after;
+ }
+ outcome.sort((a,b)=>b.q-a.q);
+ const head=Array.from({length:6},(_,i)=>outcome.filter(o=>o.a===i+1).reduce((t,o)=>t+o.q,0));
+ const conditionalSecond=Array.from({length:5},(_,i)=>outcome.filter(o=>o.a===1&&o.b===i+2).reduce((t,o)=>t+o.q,0)/head[0]);
+ return {...cal,outcomes:outcome,head,conditionalSecond,top:outcome.slice(0,6),thirdLearned:fit.counts.reduce((a,b)=>a+b,0)};
+}
+// WATER 9.5: research-only time-separated benchmark; no silent production-model switch.
+let deepAudit=[];
+function deepDay(end,delta){const d=new Date(end+'T12:00:00');d.setDate(d.getDate()+delta);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
+function deepStats(rows){
+ const n=rows.length;if(!n)return null;
+ const hits=[2,4,6,10].map(k=>rows.filter(x=>x.rank<=k).length);
+ const log=rows.reduce((t,x)=>t-Math.log(Math.max(1e-12,x.prob)),0)/n;
+ const brier=rows.reduce((t,x)=>t+(x.p1-(x.order[0]===1?1:0))**2,0)/n;
+ return {n,hits,log,brier,avg4:rows.reduce((t,x)=>t+x.mass4,0)/n,rank:rows.reduce((t,x)=>t+x.rank,0)/n};
+}
+function deepPct(n,d){return d?`${(n/d*100).toFixed(1)}%`:'—'}
+function deepMetrics(label,rows){const x=deepStats(rows);if(!x)return `<div class="race">${escapeHtml(label)}：集計なし</div>`;
+ return `<div class="race"><strong>${escapeHtml(label)}（${x.n}R）</strong><div class="metric"><span>3連単 上位2 / 4 / 6 / 10点</span><b>${x.hits.map(y=>deepPct(y,x.n)).join(' / ')}</b></div><div class="metric"><span>全120通りログ損失（小さいほど良い）</span><b>${x.log.toFixed(4)}</b></div><div class="metric"><span>1号艇1着Brier（小さいほど良い）</span><b>${x.brier.toFixed(4)}</b></div><div class="metric"><span>上位4点の平均確率合計</span><b>${deepPct(x.avg4,1)}</b></div></div>`;
+}
+function deepEvaluate(m,order){
+ if(!m||!checkIntegratedModel(m))return null;
+ const idx=m.outcomes.findIndex(x=>x.a===order[0]&&x.b===order[1]&&x.c===order[2]);if(idx<0)return null;
+ const exact=m.outcomes[idx];const top4=m.outcomes.slice(0,4);
+ const p1=m.head[0];const mass4=top4.reduce((t,x)=>t+x.q,0);
+ const inOnly=m.outcomes.filter(x=>x.a===1);
+ const inRank=order[0]===1?inOnly.findIndex(x=>x.b===order[1]&&x.c===order[2])+1:null;
+ const topIn=inOnly.slice(0,4);
+ const secondCovered=order[0]===1&&topIn.some(x=>x.b===order[1]);
+ const thirdCovered=order[0]===1&&topIn.some(x=>x.c===order[2]);
+ return {rank:idx+1,prob:exact.q,p1,mass4,inRank,secondCovered,thirdCovered,order};
+}
+// WATER 10.8: paired evaluation on the same races. No new prediction coefficients.
+// McNemar disagreement test highlights whether top-4 differences could be random.
+function water108Paired(rows,oldKey,newKey,label){
+ const a=rows.filter(x=>x[oldKey]&&x[newKey]);
+ if(!a.length)return '';
+ const gained=a.filter(x=>x[oldKey].rank>4&&x[newKey].rank<=4).length;
+ const lost=a.filter(x=>x[oldKey].rank<=4&&x[newKey].rank>4).length;
+ const discord=gained+lost;
+ const delta=100*(gained-lost)/a.length;
+ const se=100*Math.sqrt(discord)/a.length;
+ const z=discord?Math.abs(gained-lost)/Math.sqrt(discord):0;
+ const dayStats=[...new Set(a.map(x=>x.date))].map(d=>{
+  const v=a.filter(x=>x.date===d),gain=v.filter(x=>x[oldKey].rank>4&&x[newKey].rank<=4).length,loss=v.filter(x=>x[oldKey].rank<=4&&x[newKey].rank>4).length;
+  return {d,n:v.length,gain,loss};
+ });
+ const plus=dayStats.filter(x=>x.gain>x.loss).length,minus=dayStats.filter(x=>x.gain<x.loss).length,tie=dayStats.length-plus-minus;
+ const oldLog=deepStats(a.map(x=>x[oldKey])).log,newLog=deepStats(a.map(x=>x[newKey])).log;
+ const verdict=delta>0&&newLog<oldLog&&plus>minus?'改善の兆候（独立検証は必要）':'正式採用は保留';
+ return `<div class="race"><strong>10.8｜${escapeHtml(label)}・同一レース比較</strong>
+ <div class="metric"><span>上位4点：新モデルのみ的中 / 旧モデルのみ的中</span><b>${gained}R / ${lost}R</b></div>
+ <div class="metric"><span>4点的中率の差（新−旧）</span><b>${delta>=0?'+':''}${delta.toFixed(2)}ポイント</b></div>
+ <div class="metric"><span>差の参考範囲（正規近似95%）</span><b>${(delta-1.96*se).toFixed(2)}〜${(delta+1.96*se).toFixed(2)}ポイント</b></div>
+ <div class="metric"><span>日別で改善 / 悪化 / 同率</span><b>${plus}日 / ${minus}日 / ${tie}日</b></div>
+ <div class="metric"><span>ログ損失 旧→新（低いほど良い）</span><b>${oldLog.toFixed(4)} → ${newLog.toFixed(4)}</b></div>
+ <div class="metric"><span>判定</span><b>${verdict}</b></div>
+ <p class="muted">同一レースの的中入替だけを比較。参考範囲はレース間の独立を仮定した簡易値で、同一日・同一場の相関やモデル選択の繰り返しを考慮していません。|z|=${z.toFixed(2)}。有意性の確証ではありません。</p></div>`;
+}
+function water108Report(rows){
+ return `<div class="hint"><strong>10.8｜4点精度の採否監査</strong>：新旧の差を同一レースで比較し、的中入替・日別安定性・確率の対数損失をまとめました。モデルの採用は自動変更しません。</div>`+
+ water108Paired(rows,'cal','pair','2着→3着組合せ学習')+
+ water108Paired(rows,'cal','third106','条件付き3着補正');
+}
+// WATER 10.9: fixed-coverage prospective selection simulation.
+// Scores use predictions only. Actual results are used ONLY after selection to score accuracy.
+// These are retrospective exploratory audits, NOT validated betting rules.
+function water109SelectionAudit(rows){
+ const models=[['cal','旧・1着2着補正'],['pair','2着→3着組合せ学習'],['third106','条件付き3着補正']];
+ const valid=rows.filter(r=>models.every(([key])=>r[key]&&Number.isFinite(r[key].mass4)));
+ if(!valid.length)return '<div class="hint">10.9｜検証対象なし</div>';
+ const coverage=[.25,.5,1];
+ const lines=[];
+ for(const [key,name] of models){
+  const ordered=[...valid].sort((a,b)=>b[key].mass4-a[key].mass4||String(a.date).localeCompare(String(b.date))||String(a.venue).localeCompare(String(b.venue))||(a.race-b.race));
+  for(const part of coverage){
+   const n=Math.max(1,Math.ceil(ordered.length*part)),sample=ordered.slice(0,n);
+   const hits=sample.filter(r=>r[key].rank<=4).length;
+   const mass=sample.reduce((t,r)=>t+r[key].mass4,0)/n;
+   const observed=hits/n;
+   const z=1.96,den=1+z*z/n,center=(observed+z*z/(2*n))/den;
+   const half=z*Math.sqrt(observed*(1-observed)/n+z*z/(4*n*n))/den;
+   lines.push(`<div class="metric"><span>${name}｜上位${Math.round(part*100)}%選別 ${n}R（予測4点合計平均 ${(mass*100).toFixed(1)}%）</span><b>${hits}/${n} = ${(observed*100).toFixed(1)}%［参考95% ${(100*Math.max(0,center-half)).toFixed(1)}〜${(100*Math.min(1,center+half)).toFixed(1)}%］</b></div>`);
+  }
+ }
+ // Per-day checks prevent a single day from masking deterioration.
+ const days=[...new Set(valid.map(r=>r.date))].sort();
+ const dayRows=days.map(d=>{
+  const subset=valid.filter(r=>r.date===d),old=subset.filter(r=>r.cal.rank<=4).length;
+  const pair=subset.filter(r=>r.pair.rank<=4).length,third=subset.filter(r=>r.third106.rank<=4).length;
+  return `<div class="metric"><span>${escapeHtml(d)}｜${subset.length}R</span><b>旧 ${old} / 組合せ ${pair} / 3着補正 ${third}</b></div>`;
+ }).join('');
+ return `<div class="race"><strong>10.9｜4点に絞れるレースの選別能力（事後監査）</strong>
+ <p class="muted">予想時点で計算した上位4点の合計確率が高い順に、全体の25%・50%・100%を選択。選別後に確定結果と照合します。実際の1着艇を事前に知った扱いにはしていません。</p>
+ ${lines.join('')}
+ <p class="warn">選別率25%・50%は固定の比較用区分です。95%範囲は独立レースを仮定したWilson区間で、同一日・同一場の相関や過去データへの反復調整は考慮していません。過去の出走表がレース前の状態だったか未確認のため、投票判断には使用しないでください。</p></div>
+ <div class="race"><strong>10.9｜日別4点的中数の安定性</strong>${dayRows}<p class="muted">同一日・同一場の相関があるため、総レース数だけで改善を断定しません。</p></div>`;
+}
+
+// WATER 11.4: chronological two-window audit and explicit adoption gate.
+// No outcomes are used in model selection, no model is auto-promoted.
+// This audit reports the uncertainty and blocks a verdict when evidence is weak.
+function water110DecisionAudit(rows,courseStats,missing){
+ const models=[['cal','旧・1着2着補正'],['pair','2着→3着組合せ学習'],['third106','条件付き3着補正']];
+ const valid=rows.filter(r=>models.every(([key])=>r[key]&&Number.isFinite(r[key].mass4)&&Number.isFinite(r[key].prob)&&r[key].prob>0));
+ const dates=[...new Set(valid.map(r=>r.date))].sort();
+ if(dates.length<4||valid.length<80)return `<div class="race"><strong>11.0｜採否ゲート</strong><p class="warn">評価可能な日数またはレース数が不足（${dates.length}日・${valid.length}R）。最低4日・80Rが必要です。旧モデルを維持します。</p></div>`;
+ const mid=Math.floor(dates.length/2),periods=[dates.slice(0,mid),dates.slice(mid)];
+ const fmt=(n)=>Number.isFinite(n)?n.toFixed(2):'—';
+ const metric=(a,key)=>{
+  const n=a.length,h=a.filter(x=>x[key].rank<=4).length;
+  const log=a.reduce((t,x)=>t-Math.log(Math.max(1e-12,x[key].prob)),0)/n;
+  return {n,h,rate:h/n,log};
+ };
+ const periodLines=periods.map((ds,i)=>{
+  const subset=valid.filter(x=>ds.includes(x.date));
+  return `<div class="race"><strong>${i===0?'前半':'後半'}：${escapeHtml(ds[0])}〜${escapeHtml(ds[ds.length-1])}（${subset.length}R）</strong>`+
+   models.map(([key,label])=>{const m=metric(subset,key);return `<div class="metric"><span>${label}</span><b>4点 ${m.h}/${m.n}（${(100*m.rate).toFixed(1)}%）／対数損失 ${m.log.toFixed(4)}</b></div>`}).join('')+'</div>';
+ }).join('');
+ const old=metric(valid,'cal');
+ const decisions=models.slice(1).map(([key,label])=>{
+  const now=metric(valid,key);
+  const split=periods.map(ds=>{const a=valid.filter(x=>ds.includes(x.date));return {old:metric(a,'cal'),now:metric(a,key)}});
+  const wins=valid.filter(x=>x.cal.rank>4&&x[key].rank<=4).length;
+  const losses=valid.filter(x=>x.cal.rank<=4&&x[key].rank>4).length;
+  const net=wins-losses;
+  const diff=now.rate-old.rate;
+  const logImproved=now.log<old.log;
+  const consistent=split.every(x=>x.now.rate>x.old.rate&&x.now.log<x.old.log);
+  const enough=split.every(x=>x.old.n>=40)&&wins+losses>=20;
+  // This is a conservative research gate, not a statistical significance test.
+  const candidate=enough&&net>=10&&diff>=.01&&logImproved&&consistent&&missing===0;
+  const status=candidate?'追加の独立期間で再検証する候補':'正式採用せず（旧モデル維持）';
+  return `<div class="race"><strong>${label}：${status}</strong>
+   <div class="metric"><span>4点的中率の差</span><b>${diff>=0?'+':''}${fmt(diff*100)}ポイント</b></div>
+   <div class="metric"><span>新モデルだけ的中／旧モデルだけ的中</span><b>${wins}R／${losses}R（差 ${net>=0?'+':''}${net}R）</b></div>
+   <div class="metric"><span>対数損失（小さい方が良い）</span><b>旧 ${old.log.toFixed(4)} → 新 ${now.log.toFixed(4)}</b></div>
+   <div class="metric"><span>前半・後半で的中率と対数損失がともに改善</span><b>${consistent?'はい':'いいえ'}</b></div>
+   <p class="muted">判定条件：両期間各40R以上、的中入替20R以上、純増10R以上、全体4点的中率+1ポイント以上、全体対数損失改善、前後半とも両指標改善、取得失敗0日。すべて満たしても自動採用はしません。</p></div>`;
+ }).join('');
+ const provenance=courseStats.used===0?
+  '個人コース別実測値は今回の検証で0件。コース別成績を反映した予想精度とは呼べません。':
+  `個人コース別実測値の検出 ${courseStats.used}/${courseStats.total}R。取得項目の定義と予想時点の整合性は別途確認が必要です。`;
+ return `<div class="hint"><strong>WATER 11.4｜統合採否監査</strong>：評価期間を日付順に前半・後半へ分割。旧モデルを基準に、4点的中率・対数損失・的中入替を同時確認します。比較結果を見て予想係数を変更しません。</div>
+ ${periodLines}${decisions}
+ <div class="race"><strong>11.0｜データの限界と運用判断</strong>
+ <p class="warn">${provenance} 履歴出走表が実際のレース前に利用可能だった情報か未確認です。過去の開発で同じ期間を参照した可能性もあり、完全な独立検証ではありません。実際の回収率・オッズ適合性は未検証です。</p>
+ <p class="muted">正式なモデル変更は保留。GitHubで公開中の旧モデルと、既存の予想保存機能は変更しません。次の実機確認では⑬の時系列検証を実行してください。</p></div>`;
+}
+// WATER 11.4: research-only third-lane sensitivity. Preserve P(first,second)
+// by renormalizing third-place probabilities separately for each ordered (first,second).
+// Fixed factors are scenarios, not learned or selected using the evaluation results.
+function water111ThirdScenario(model,factor){
+ if(!model||!checkIntegratedModel(model))return null;
+ const sums=new Map(),weighted=model.outcomes.map(o=>{
+  const w=o.q*((o.a===1&&(o.c===5||o.c===6))?factor:1);
+  const key=o.a+'-'+o.b;sums.set(key,(sums.get(key)||0)+w);
+  return {o,w,key};
+ });
+ const original=new Map();for(const o of model.outcomes){const key=o.a+'-'+o.b;original.set(key,(original.get(key)||0)+o.q)}
+ const outcomes=weighted.map(({o,w,key})=>({...o,q:w*(original.get(key)||0)/(sums.get(key)||1)})).sort((a,b)=>b.q-a.q);
+ const next={...model,outcomes,top:outcomes.slice(0,6)};
+ return checkIntegratedModel(next)?next:null;
+}
+function water111ThirdAudit(rows){
+ const valid=rows.filter(x=>x.calModel&&x.cal);
+ if(!valid.length)return '';
+ const dates=[...new Set(valid.map(x=>x.date))].sort();const pivot=dates[Math.floor(dates.length/2)];
+ const variants=[{name:'旧モデル（基準）',f:1},{name:'5・6号艇3着 ×1.2',f:1.2},{name:'5・6号艇3着 ×1.5',f:1.5}];
+ const computed=variants.map(v=>({name:v.name,f:v.f,entries:valid.map(x=>({x,e:v.f===1?x.cal:deepEvaluate(water111ThirdScenario(x.calModel,v.f),x.order)}))}));
+ const score=a=>{const n=a.length,hit=a.filter(z=>z.e?.rank<=4).length,log=a.reduce((t,z)=>t-Math.log(Math.max(z.e?.prob||0,1e-12)),0)/Math.max(n,1);return `${hit}/${n}R (${deepPct(hit,n)}) ／ 対数損失 ${log.toFixed(4)}`};
+ const base=computed[0].entries;
+ const sections=computed.map(v=>{
+  const gained=v.entries.filter((z,i)=>base[i].e.rank>4&&z.e?.rank<=4);
+  const lost=v.entries.filter((z,i)=>base[i].e.rank<=4&&z.e?.rank>4);
+  const subset=(fn)=>v.entries.filter(z=>fn(z.x));
+  const outsideGained=gained.filter(z=>z.x.order[0]===1&&(z.x.order[2]===5||z.x.order[2]===6)).length;
+  const outsideLost=lost.filter(z=>z.x.order[0]===1&&(z.x.order[2]===5||z.x.order[2]===6)).length;
+  return `<div class="race"><strong>${v.name}</strong>
+   <div class="metric"><span>全レース4点 / 対数損失</span><b>${score(v.entries)}</b></div>
+   <div class="metric"><span>前半（${pivot}より前）</span><b>${score(subset(x=>x.date<pivot))}</b></div>
+   <div class="metric"><span>後半（${pivot}以降）</span><b>${score(subset(x=>x.date>=pivot))}</b></div>
+   <div class="metric"><span>1号艇が実際に1着（事後条件）</span><b>${score(subset(x=>x.order[0]===1))}</b></div>
+   <div class="metric"><span>旧モデルから新たに的中 / 失った的中</span><b>${gained.length}R / ${lost.length}R</b></div>
+   <div class="metric"><span>上記のうち実際の3着が5・6号艇かつ1号艇1着</span><b>獲得${outsideGained}R / 喪失${outsideLost}R</b></div>
+   </div>`;
+ }).join('');
+ return `<div class="hint"><strong>11.1｜5・6号艇の3着候補・感度監査（研究用）</strong>：1着・2着の同時確率を固定したまま、1号艇1着時の5・6号艇3着への重みだけを固定倍率で変え、各2着艇の条件内で再正規化します。結果を予想へ逆流させません。倍率は比較用の仮定であり、結果が良くても採用しません。</div>${sections}<p class="warn">重要：過去の出走表が予想時点の値だったか未確認です。この期間を見て倍率を選ぶと過学習になります。正式採用には別期間の事前固定検証が必要です。</p>`;
+}
+// WATER 11.4: diagnostic strata defined without inspecting the outcome.
+// The candidate third-place multiplier remains research-only and never enters live picks.
+function water112StratifiedAudit(rows){
+ const valid=rows.filter(x=>x.calModel&&x.cal&&x.order);
+ if(!valid.length)return '';
+ const scenarios=[{name:'旧モデル',factor:1},{name:'外側3着 ×1.2',factor:1.2},{name:'外側3着 ×1.5',factor:1.5}];
+ const tests=valid.map(x=>{
+  const scores=scenarios.map(v=>v.factor===1?x.cal:deepEvaluate(water111ThirdScenario(x.calModel,v.factor),x.order));
+  const head=x.calModel.head?.[0];
+  const top2=x.calModel.outcomes.filter(o=>o.a===1).reduce((m,o)=>{
+   m[o.b]=(m[o.b]||0)+o.q;return m;
+  },{});
+  const likelySecond=Object.entries(top2).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  return {x,scores,head,likelySecond:Number(likelySecond)};
+ });
+ const groups=[
+  {name:'全レース',f:z=>true},
+  {name:'1号艇の予測1着確率 65%以上',f:z=>z.head>=.65},
+  {name:'1号艇の予測1着確率 65%未満',f:z=>z.head<.65},
+  {name:'予測2着本命が2・3号艇',f:z=>z.likelySecond===2||z.likelySecond===3},
+  {name:'予測2着本命が4・5・6号艇',f:z=>z.likelySecond>=4&&z.likelySecond<=6},
+  {name:'実際に1号艇が1着（事後診断のみ）',f:z=>z.x.order[0]===1},
+  {name:'実際に1号艇1着・3着5/6（事後診断のみ）',f:z=>z.x.order[0]===1&&z.x.order[2]>=5}
+ ];
+ const summary=groups.map(g=>{
+  const arr=tests.filter(g.f);if(!arr.length)return `<div class="race"><strong>${g.name}</strong><p class="muted">該当0R</p></div>`;
+  const baseHit=arr.filter(z=>z.scores[0]?.rank<=4).length;
+  const cells=scenarios.map((v,j)=>{
+   const hits=arr.filter(z=>z.scores[j]?.rank<=4).length;
+   const gained=arr.filter(z=>z.scores[0]?.rank>4&&z.scores[j]?.rank<=4).length;
+   const lost=arr.filter(z=>z.scores[0]?.rank<=4&&z.scores[j]?.rank>4).length;
+   return `<div class="metric"><span>${v.name}</span><b>${hits}/${arr.length}R (${deepPct(hits,arr.length)})${j?`　獲得${gained}／喪失${lost}`:''}</b></div>`;
+  }).join('');
+  return `<div class="race"><strong>${g.name}（${arr.length}R）</strong>${cells}</div>`;
+ }).join('');
+ const second=[2,3,4,5,6].map(lane=>{
+  const arr=tests.filter(z=>z.x.order[0]===1&&z.x.order[1]===lane);
+  if(!arr.length)return '';
+  const extra=scenarios.slice(1).map((v,j)=>{
+   const gained=arr.filter(z=>z.scores[0]?.rank>4&&z.scores[j+1]?.rank<=4).length;
+   const lost=arr.filter(z=>z.scores[0]?.rank<=4&&z.scores[j+1]?.rank>4).length;
+   return `${v.factor}倍：+${gained}/-${lost}`;
+  }).join('、');
+  return `<div class="metric"><span>実際の2着${lane}号艇（${arr.length}R）※事後診断</span><b>${extra}</b></div>`;
+ }).join('');
+ return `<div class="hint"><strong>11.2｜外側3着の改善・悪化条件の分解</strong><p>予測時点に分かる「1号艇予測1着確率」と「予測2着本命」で層別。実際の着順による分類は原因調査のみで、レース選別には使用しません。</p></div>${summary}<div class="race"><strong>実際の2着艇別：4点的中の入替</strong>${second}</div><p class="warn">重要：ここで良かった倍率・条件をそのまま本番に採用すると、同じ過去データへの過学習になります。コース別実測0R・予想時点データ未確認の問題も未解決です。旧モデル維持。</p>`;
+}
+
+// WATER 11.4: fixed, research-only conditional second/third interaction.
+// Keep P(first,second) unchanged by normalizing within every ordered pair.
+function water113ConditionalThird(model,policy){
+ if(!model||!checkIntegratedModel(model))return null;
+ const factorFor=(o)=>{
+  if(o.a!==1||o.c<5)return 1;
+  if(policy==='inner')return o.b===2||o.b===3?1.3:1;
+  if(policy==='outer')return o.b>=4?1.3:1;
+  if(policy==='balanced')return o.b===2||o.b===3?1.2:1.1;
+  return 1;
+ };
+ const orig=new Map(),weighted=new Map();
+ for(const o of model.outcomes){
+  const key=o.a+'-'+o.b;
+  orig.set(key,(orig.get(key)||0)+o.q);
+  weighted.set(key,(weighted.get(key)||0)+o.q*factorFor(o));
+ }
+ const outcomes=model.outcomes.map(o=>{
+  const key=o.a+'-'+o.b,den=weighted.get(key);
+  return {...o,q:den>0?o.q*factorFor(o)*orig.get(key)/den:o.q};
+ }).sort((a,b)=>b.q-a.q);
+ const next={...model,outcomes,top:outcomes.slice(0,6)};
+ return checkIntegratedModel(next)?next:null;
+}
+function water113ConditionalAudit(rows){
+ const valid=rows.filter(x=>x.calModel&&x.cal&&x.order);
+ if(!valid.length)return '';
+ const dates=[...new Set(valid.map(x=>x.date))].sort();
+ const pivot=dates[Math.floor(dates.length/2)];
+ const policies=[['base','旧モデル（基準）'],['inner','2着2・3号艇のとき外側3着×1.3'],['outer','2着4〜6号艇のとき外側3着×1.3'],['balanced','2着内側×1.2／外側×1.1']];
+ const evaluated=valid.map(x=>({x,results:policies.map(([key])=>key==='base'?x.cal:deepEvaluate(water113ConditionalThird(x.calModel,key),x.order))}));
+ const summarize=(arr,k)=>{
+  const n=arr.length;if(!n)return '対象0R';
+  const hit=arr.filter(z=>z.results[k]?.rank<=4).length;
+  const gain=arr.filter(z=>z.results[0]?.rank>4&&z.results[k]?.rank<=4).length;
+  const loss=arr.filter(z=>z.results[0]?.rank<=4&&z.results[k]?.rank>4).length;
+  const log=arr.reduce((v,z)=>v-Math.log(Math.max(z.results[k]?.prob||0,1e-12)),0)/n;
+  return `${hit}/${n}R (${deepPct(hit,n)})／獲得${gain}・喪失${loss}／損失${log.toFixed(4)}`;
+ };
+ const groups=[['全レース',z=>true],['前半',z=>z.x.date<pivot],['後半',z=>z.x.date>=pivot],['1号艇予測1着65%以上',z=>z.x.calModel.head?.[0]>=.65],['1号艇予測1着65%未満',z=>z.x.calModel.head?.[0]<.65],['実際に1号艇1着（事後診断）',z=>z.x.order[0]===1]];
+ const cards=policies.map(([key,name],k)=>`<div class="race"><strong>${name}</strong>${groups.map(([label,f])=>`<div class="metric"><span>${label}</span><b>${summarize(evaluated.filter(f),k)}</b></div>`).join('')}</div>`).join('');
+ const bySecond=[2,3,4,5,6].map(lane=>{
+  const a=evaluated.filter(z=>z.x.order[0]===1&&z.x.order[1]===lane);
+  return `<div class="race"><strong>実際の2着${lane}号艇（${a.length}R・事後診断）</strong>${policies.slice(1).map(([key,name],j)=>`<div class="metric"><span>${name}</span><b>${summarize(a,j+1)}</b></div>`).join('')}</div>`;
+ }).join('');
+ return `<div class="hint"><strong>11.3｜2着×3着の条件付き組合せ比較（研究用）</strong><p>実際の着順を使わず、予測時点の各「1着・2着」組に応じて5・6号艇の3着重みを変更。各組の合計確率を保存し、旧モデルと同一レースで比較します。倍率は事前固定の仮説で、結果を見て自動採用しません。</p></div>${cards}<details><summary>実際の2着艇別の誤差診断を開く</summary>${bySecond}</details><p class="warn">過去出走表の予想時点は未確認、過去期間は既に開発に使用済みです。これは独立検証でも回収率検証でもありません。旧モデル・買い目は変更しません。</p>`;
+}
+
+// WATER 11.4: fixed candidate shortlist. Descriptive only, never auto-adopt.
+function water114CandidateGate(rows,missing,courseStats){
+ const valid=rows.filter(x=>x.calModel&&x.cal&&x.order&&x.date);
+ const dates=[...new Set(valid.map(x=>x.date))].sort();
+ if(dates.length<4||valid.length<80)return '<div class="race"><strong>11.4｜候補絞り込み</strong><p class="warn">検証データ不足。候補選定を保留します。</p></div>';
+ const cut=dates[Math.floor(dates.length/2)];
+ const candidates=[
+  ['base','旧・1着2着補正',m=>m],
+  ['all12','外側3着×1.2',m=>water111ThirdScenario(m,1.2)],
+  ['all15','外側3着×1.5',m=>water111ThirdScenario(m,1.5)],
+  ['inner','2着2・3号艇のとき外側3着×1.3',m=>water113ConditionalThird(m,'inner')],
+  ['outer','2着4〜6号艇のとき外側3着×1.3',m=>water113ConditionalThird(m,'outer')],
+  ['balanced','2着内側×1.2／外側×1.1',m=>water113ConditionalThird(m,'balanced')]
+ ];
+ const data=valid.map(x=>({date:x.date,results:candidates.map(([id,label,fn],k)=>k===0?x.cal:deepEvaluate(fn(x.calModel),x.order))}));
+ if(data.some(z=>z.results.some(r=>!r||!Number.isFinite(r.prob)||r.prob<=0)))return '<p class="warn">11.4：候補計算に失敗したため比較を中止しました。</p>';
+ const summarize=(items,k)=>{
+  const n=items.length,h=items.filter(z=>z.results[k].rank<=4).length;
+  const ll=items.reduce((a,z)=>a-Math.log(Math.max(1e-12,z.results[k].prob)),0)/n;
+  return {n,h,rate:h/n,ll};
+ };
+ const halves=[data.filter(z=>z.date<cut),data.filter(z=>z.date>=cut)];
+ const old=summarize(data,0);
+ const records=candidates.slice(1).map(([id,label],j)=>{
+  const k=j+1,m=summarize(data,k),hs=halves.map(a=>({old:summarize(a,0),now:summarize(a,k)}));
+  const gains=data.filter(z=>z.results[0].rank>4&&z.results[k].rank<=4).length;
+  const losses=data.filter(z=>z.results[0].rank<=4&&z.results[k].rank>4).length;
+  const stable=hs.every(v=>v.now.rate>v.old.rate&&v.now.ll<v.old.ll);
+  const sufficient=halves.every(a=>a.length>=40)&&gains+losses>=20;
+  const passes=sufficient&&stable&&gains-losses>=10&&m.rate-old.rate>=.01&&m.ll<old.ll&&missing===0;
+  return {label,m,gains,losses,stable,sufficient,passes};
+ });
+ const passed=records.filter(x=>x.passes);
+ const note=passed.length?'条件を満たした仮説が存在します。ただし、既に開発で参照した期間のため正式採用は不可。別期間で事前固定検証が必要です。':'今回の条件をすべて満たす仮説はありません。旧モデルを維持します。';
+ const cards=records.map(x=>`<div class="race"><strong>${x.label}</strong>
+ <div class="metric"><span>全期間4点的中率</span><b>${x.m.h}/${x.m.n}R (${(x.m.rate*100).toFixed(1)}%) ／ 旧との差 ${((x.m.rate-old.rate)*100).toFixed(2)}pt</b></div>
+ <div class="metric"><span>対数損失（旧 ${old.ll.toFixed(4)}）</span><b>${x.m.ll.toFixed(4)}</b></div>
+ <div class="metric"><span>旧から獲得／喪失</span><b>${x.gains}R／${x.losses}R</b></div>
+ <div class="metric"><span>前後半で両指標改善</span><b>${x.stable?'はい':'いいえ'}</b></div>
+ <div class="metric"><span>研究候補ゲート</span><b>${x.passes?'通過（正式採用不可）':'不通過'}</b></div></div>`).join('');
+ return `<div class="hint"><strong>11.4｜5仮説の一括比較・候補絞り込み</strong><p>11.1〜11.3で固定した仮説を同一レースで比較。4点的中率と対数損失が前後半とも改善し、獲得−喪失10R以上・全体+1pt以上などの条件を満たすかを監査します。最良の倍率を自動選択しません。</p></div>
+ <div class="race"><strong>判定：${note}</strong><p class="muted">旧モデル ${old.h}/${old.n}R (${(old.rate*100).toFixed(1)}%)／対数損失 ${old.ll.toFixed(4)}。データ取得失敗 ${missing}日、コース別実測 ${courseStats.used}/${courseStats.total}R。複数仮説を同時に試すため、偶然の改善にも注意が必要です。</p></div>${cards}
+ <p class="warn">重要：過去出走表の予想時点が未確認であり、過去期間は開発に利用済みです。候補通過は精度向上の証明ではありません。予想画面・購入判断・正式モデルは変更していません。</p>`;
+}
+function deepReport(rows,missing,invalid,courseStats,trainCount,trainIn,dayList){
+ const modelNames=[['base','旧・基本モデル'],['cal','旧・1着2着補正'],['new','9.4着順別試験'],['v10','10.0展開別試験'],['pair','10.2 2着→3着学習試験'],['third106','10.7 条件付き3着補正試験']];
+ const metrics=modelNames.map(([k,label])=>deepMetrics(label,rows.map(x=>x[k]).filter(Boolean))).join('');
+ const four=rows.filter(x=>x.cal),ins=four.filter(x=>x.cal.order[0]===1);
+ const group=[{name:'上位4点確率 40%未満',a:four.filter(x=>x.cal.mass4<.4)},{name:'40〜55%',a:four.filter(x=>x.cal.mass4>=.4&&x.cal.mass4<.55)},{name:'55%以上',a:four.filter(x=>x.cal.mass4>=.55)}];
+ const ranks=[1,2,3,4,5,6,7,8,9,10,11,21,51,121];
+ const distribution=ranks.map((end,i)=>{const start=i?ranks[i-1]:0;const a=four.filter(x=>x.cal.rank>start&&x.cal.rank<=end);return `<div class="metric"><span>${start+1}〜${end===121?'120':end}位</span><b>${a.length}R</b></div>`}).join('');
+ const sampleErrors=four.filter(x=>x.cal.rank>4).sort((a,b)=>a.cal.rank-b.cal.rank).slice(0,20);
+ const errors=sampleErrors.map(x=>`<div class="metric"><span>${escapeHtml(x.date)} ${escapeHtml(x.venue)} ${x.race}R：${x.order.join('-')}</span><b>旧補正 ${x.cal.rank}位 / 10.0 ${x.v10?.rank||'—'}位</b></div>`).join('');
+ const inSecond=ins.filter(x=>!x.cal.secondCovered).length,inThird=ins.filter(x=>!x.cal.thirdCovered).length;
+ const pairWins=rows.filter(x=>x.cal.rank>4&&x.pair.rank<=4).length;
+ const pairLosses=rows.filter(x=>x.cal.rank<=4&&x.pair.rank>4).length;
+ const pairSame=rows.filter(x=>(x.cal.rank<=4)===(x.pair.rank<=4)).length;
+ const inPair=rows.filter(x=>x.order[0]===1);
+ const pairSecondMiss=inPair.filter(x=>!x.pair.secondCovered).length;
+ const pairThirdMiss=inPair.filter(x=>!x.pair.thirdCovered).length;
+ const conditionalRate=(arr,key)=>deepPct(arr.filter(x=>x[key].rank<=4).length,arr.length);
+ // WATER 10.4: explain the exact second-place and third-place miss, by lane.
+ // These are diagnostics on held-out results, not features used in prediction.
+ const escapeOnly=rows.filter(x=>x.order[0]===1);
+ const laneRows=[2,3,4,5,6].map(lane=>{
+  const actual=escapeOnly.filter(x=>x.order[1]===lane);
+  const oldMiss=actual.filter(x=>!x.cal.secondCovered).length;
+  const newMiss=actual.filter(x=>!x.pair.secondCovered).length;
+  const oldHits=actual.filter(x=>x.cal.rank<=4).length;
+  const newHits=actual.filter(x=>x.pair.rank<=4).length;
+  return `<div class="metric"><span>2着 ${lane}号艇：${actual.length}R（4点内 旧→新）</span><b>${oldHits}→${newHits}R ／ 2着候補漏れ ${oldMiss}→${newMiss}R</b></div>`;
+ }).join('');
+ const daily=[...new Set(rows.map(x=>x.date))].sort().map(date=>{
+  const a=rows.filter(x=>x.date===date),old=a.filter(x=>x.cal.rank<=4).length,now=a.filter(x=>x.pair.rank<=4).length;
+  return `<div class="metric"><span>${escapeHtml(date)}（${a.length}R）</span><b>${deepPct(old,a.length)} → ${deepPct(now,a.length)}</b></div>`;
+ }).join('');
+ const swapped=rows.filter(x=>(x.cal.rank<=4)!==(x.pair.rank<=4));
+ const swaps=swapped.slice(0,30).map(x=>`<div class="metric"><span>${escapeHtml(x.date)} ${escapeHtml(x.venue)} ${x.race}R ${x.order.join('-')}</span><b>${x.cal.rank}位→${x.pair.rank}位</b></div>`).join('');
+ // WATER 10.5: separately diagnose third-place coverage and exact pair ordering.
+ // This is a post-result audit only; it never feeds observed outcomes into predictions.
+ const thirdLaneRows=[2,3,4,5,6].map(lane=>{
+  const actual=escapeOnly.filter(x=>x.order[2]===lane);
+  const oldMiss=actual.filter(x=>!x.cal.thirdCovered).length;
+  const newMiss=actual.filter(x=>!x.pair.thirdCovered).length;
+  const oldHits=actual.filter(x=>x.cal.rank<=4).length;
+  const newHits=actual.filter(x=>x.pair.rank<=4).length;
+  return `<div class="metric"><span>3着 ${lane}号艇：${actual.length}R（4点内 旧→新）</span><b>${oldHits}→${newHits}R ／ 3着候補漏れ ${oldMiss}→${newMiss}R</b></div>`;
+ }).join('');
+ const errorTypes=(key)=>{
+  const misses=escapeOnly.filter(x=>x[key].rank>4);
+  const secondOnly=misses.filter(x=>!x[key].secondCovered&&x[key].thirdCovered).length;
+  const thirdOnly=misses.filter(x=>x[key].secondCovered&&!x[key].thirdCovered).length;
+  const both=misses.filter(x=>!x[key].secondCovered&&!x[key].thirdCovered).length;
+  const ordering=misses.filter(x=>x[key].secondCovered&&x[key].thirdCovered).length;
+  return {misses,secondOnly,thirdOnly,both,ordering};
+ };
+ const oldTypes=errorTypes('cal'),pairTypes=errorTypes('pair');
+ const missBreakdown=`<div class="race"><strong>10.5｜上位4点不的中の原因（1号艇1着時）</strong>
+ <div class="metric"><span>不的中総数</span><b>${oldTypes.misses.length}→${pairTypes.misses.length}R</b></div>
+ <div class="metric"><span>2着艇だけが候補から漏れた</span><b>${oldTypes.secondOnly}→${pairTypes.secondOnly}R</b></div>
+ <div class="metric"><span>3着艇だけが候補から漏れた</span><b>${oldTypes.thirdOnly}→${pairTypes.thirdOnly}R</b></div>
+ <div class="metric"><span>2着・3着とも候補から漏れた</span><b>${oldTypes.both}→${pairTypes.both}R</b></div>
+ <div class="metric"><span>両艇は候補にいたが正しい着順組合せが4点外</span><b>${oldTypes.ordering}→${pairTypes.ordering}R</b></div>
+ <p class="muted">数値は旧補正→10.2組合せ学習。実際の着順を使った事後診断であり、事前に的中を保証する判定ではありません。</p></div>
+ <div class="race"><strong>10.5｜実際の3着艇別・4点の誤差分解（1号艇1着時）</strong>${thirdLaneRows}</div>`;
+ const detailed=`<div class="race"><strong>10.4｜実際の2着艇別・4点の誤差分解（1号艇1着時）</strong>${laneRows}<p class="muted">2着艇ごとに条件付けした事後診断です。事前にこの結果を知っていた扱いにはしません。</p></div>
+ <div class="race"><strong>10.4｜日別の上位4点的中率（旧補正→組合せ学習）</strong>${daily}<p class="muted">日別に改善が一貫しているかを確認します。過去の開発で参照した期間は独立評価ではありません。</p></div>
+ <div class="race"><strong>10.4｜的中・不的中が入れ替わったレース（先頭30件／全${swapped.length}件）</strong>${swaps||'<p class="muted">該当なし</p>'}</div>`;
+ const diagnostic=`<div class="race"><strong>10.6｜2着・3着の取りこぼし診断（旧補正と組合せ学習）</strong><div class="metric"><span>組合せ学習だけ的中</span><b>${pairWins}R</b></div><div class="metric"><span>旧補正だけ的中</span><b>${pairLosses}R</b></div><div class="metric"><span>両モデルで的中・不的中が一致</span><b>${pairSame}R</b></div><div class="metric"><span>1号艇1着のレース：旧補正 / 10.1</span><b>${conditionalRate(inPair,'cal')} / ${conditionalRate(inPair,'pair')}</b></div><div class="metric"><span>1号艇1着時：2着艇が4点に登場しない 旧 / 10.1</span><b>${inSecond} / ${pairSecondMiss}R</b></div><div class="metric"><span>1号艇1着時：3着艇が4点に登場しない 旧 / 10.1</span><b>${inThird} / ${pairThirdMiss}R</b></div><p class="muted">的中入れ替わりは同一レースの直接比較。1号艇1着の集計は事後条件です。</p></div>`;
+ return `<div class="hint"><strong>時系列の分離：</strong>直前4日を補正係数の学習に使用し、それより後の${dayList.length}日を評価。補正用 ${trainCount}R（うち1号艇1着 ${trainIn}R）、評価 ${rows.length}R。取得失敗 ${missing}日、対象外 ${invalid}R。<br><strong>注意：</strong>新モデルの係数は過去の開発期間で試行されており、今回の結果も完全な独立検証とは限りません。履歴出走表の予想時点も未確認です。コース別実測値を使用できたレース ${courseStats.used}R / ${courseStats.total}R。</div>${metrics}
+ <div class="hint"><strong>10.2の評価：</strong>2着→3着の組合せ補正は学習用4日間の結果のみで計算。評価日の着順は予測に使っていません。4点的中率だけでなくログ損失も確認し、改善がなければ不採用。既存モデルを上書きしません。</div>
+ <div class="race"><strong>10.7｜3着補正の採否判定（研究用）</strong><div class="metric"><span>旧補正→10.6 上位4点</span><b>${deepPct(rows.filter(x=>x.cal.rank<=4).length,rows.length)} → ${deepPct(rows.filter(x=>x.third106.rank<=4).length,rows.length)}</b></div><div class="metric"><span>旧補正→10.6 ログ損失</span><b>${deepStats(rows.map(x=>x.cal)).log.toFixed(4)} → ${deepStats(rows.map(x=>x.third106)).log.toFixed(4)}</b></div><p class="muted">2着艇別の観測着順率を、学習期間のモデル予測を事前分布として60レース分の強さで平滑化。補正倍率は0.5〜2倍に制限し、1着・2着の確率は維持。評価期間で改善しても自動採用はしません。</p></div>
+ ${water108Report(rows)}
+ ${water109SelectionAudit(rows)}
+ ${water110DecisionAudit(rows,courseStats,missing)}
+ ${water111ThirdAudit(rows)}
+ ${water112StratifiedAudit(rows)}
+ ${water113ConditionalAudit(rows)}
+ ${water114CandidateGate(rows,missing,courseStats)}
+ ${diagnostic}
+ ${detailed}${missBreakdown}
+ ${water10SelectionReport(rows)}
+ <div class="race"><strong>4点の集中度と的中</strong>${group.map(g=>`<div class="metric"><span>${g.name}（${g.a.length}R）</span><b>${deepPct(g.a.filter(x=>x.cal.rank<=4).length,g.a.length)}</b></div>`).join('')}<p class="muted">この区分は予測値に基づく参考比較。閾値は検証結果を見て最適化していません。</p></div>
+ <div class="race"><strong>正解の予想順位（旧・統合補正）</strong>${distribution}</div>
+ <div class="race"><strong>1号艇が実際に1着だったレース（${ins.length}R）</strong><div class="metric"><span>2着がイン逃げ上位4点に一度も出ない</span><b>${inSecond}R</b></div><div class="metric"><span>3着がイン逃げ上位4点に一度も出ない</span><b>${inThird}R</b></div><p class="muted">同じレースで2着・3着の両方が漏れる場合があります。着順誤りの単純合計ではありません。</p></div>
+ <div class="race"><strong>4点から漏れた事例（最大20件・旧モデル順位の昇順）</strong>${errors||'<p>該当なし</p>'}</div>`;
+}
+$('runDeepLab').onclick=async()=>{
+ const btn=$('runDeepLab'),status=$('deepStatus'),out=$('deepResults');const end=$('deepEnd').value,days=Number($('deepDays').value);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(end)||end>=localDay()){status.textContent='検証最終日は昨日以前を選んでください。';return}
+ btn.disabled=true;$('deepExport').disabled=true;out.innerHTML='';deepAudit=[];
+ let missing=0,invalid=0,courseStats={used:0,total:0};
+ const training=[],testing=[];
+ try{
+  for(let i=-days-3;i<=0;i++){
+   const date=deepDay(end,i),ds=date.replaceAll('-','');status.textContent=`取得中 ${i+days+4}/${days+4}日：${date}`;
+   try{
+    const response=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});
+    if(!response.ok){missing++;continue}
+    const json=await response.json(),stadiums=json?.programs?.stadiums;if(!stadiums){missing++;continue}
+    for(const [id,stadium] of Object.entries(stadiums)){
+     const venue=names[Number(id)-1];if(!venue||!enabled.includes(venue))continue;
+     for(const [number,rr] of Object.entries(stadium?.races||{})){
+      const order=getFinishOrder(rr),r=screenRace(rr,venue,Number(number));if(!order||!r){invalid++;continue}
+      const base=modelRace(r);if(!base){invalid++;continue}
+      const row={date,venue,race:Number(number),order,r,base};
+      if(i<=-days)training.push(row);else testing.push(row);
+     }
+    }
+   }catch(e){missing++}
+  }
+  if(training.length<40||testing.length<20){status.textContent=`有効データが不足しています。学習${training.length}R、評価${testing.length}R。`;return}
+  const offset=fitOffset(training.map(x=>({p:x.base.head[0],y:Number(x.order[0]===1)})));
+  const trainIn=training.filter(x=>x.order[0]===1);
+  const bias=trainIn.length>=15?fitSecondBias(trainIn.map(x=>({m:x.base,order:x.order}))):null;
+  const pairFit=fitOrderedPairBias(training,offset,bias);
+  const thirdFit106=fitConditionalThird106(training,offset,bias);
+  const results=[];
+  for(const x of testing){
+   const calFirst=calibrateDistribution(x.base,offset);
+   const cal=bias?integrateSecondDistribution(calFirst,bias):calFirst;
+   const pair=orderedPairModel(cal,pairFit);
+   const third106=conditionalThirdModel106(cal,thirdFit106);
+   const exp=water94Model(x.r),v10=water10Model(x.r);
+   const base=deepEvaluate(x.base,x.order),c=deepEvaluate(cal,x.order),newModel=deepEvaluate(exp,x.order),v10Eval=deepEvaluate(v10,x.order),pairEval=deepEvaluate(pair,x.order),third106Eval=deepEvaluate(third106,x.order);
+   if(!base||!c||!newModel||!v10Eval||!pairEval||!third106Eval){invalid++;continue}
+   courseStats.total++;if(exp.courseData>0)courseStats.used++;
+   results.push({...x,calModel:cal,base,cal:c,new:newModel,v10:v10Eval,pair:pairEval,third106:third106Eval});
+   deepAudit.push({date:x.date,venue:x.venue,race:x.race,actual:x.order.join('-'),base_rank:base.rank,cal_rank:c.rank,new_rank:newModel.rank,v10_rank:v10Eval.rank,pair_rank:pairEval.rank,third106_rank:third106Eval.rank,third106_top4:third106Eval.rank<=4,third106_p:third106Eval.prob,pair_top4:pairEval.rank<=4,pair_p:pairEval.prob,pair_mass4:pairEval.mass4,v10_top4:v10Eval.rank<=4,v10_mass4:v10Eval.mass4,base_top4:base.rank<=4,cal_top4:c.rank<=4,new_top4:newModel.rank<=4,base_p:base.prob,cal_p:c.prob,new_p:newModel.prob,cal_mass4:c.mass4,course_fields:exp.courseData,provenance:'未確認'});
+  }
+  const dates=[...new Set(results.map(x=>x.date))];
+  status.textContent=`6モデル・11.4候補比較完了：学習${training.length}R・評価${results.length}R。コース別実測項目あり ${courseStats.used}R。2着→3着補正の学習 ${pairFit.count}R。条件付き3着補正 ${thirdFit106.counts.reduce((a,b)=>a+b,0)}R。`;
+  out.innerHTML=deepReport(results,missing,invalid,courseStats,training.length,trainIn.length,dates);
+  $('deepExport').disabled=!deepAudit.length;
+ }catch(e){status.textContent=`検証エラー：${String(e?.message||e)}`}
+ finally{btn.disabled=false}
+};
+$('deepExport').onclick=()=>{
+ if(!deepAudit.length)return;
+ const keys=Object.keys(deepAudit[0]);const csv=[keys.join(','),...deepAudit.map(x=>keys.map(k=>`"${String(x[k]??'').replaceAll('"','""')}"`).join(','))].join('\r\n');
+ const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`water95_audit_${$('deepEnd').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+$('deepEnd').value=deepDay(localDay(),-1);
+
+
+// WATER 10.0: transparent experimental scenario mixture, NOT live production model.
+// Each scenario has a 120-order probability distribution. No outcome/result is used in prediction.
+const WATER10_SCENARIOS=[
+ {name:'内側差し残り',base:.46},
+ {name:'センター攻め',base:.34},
+ {name:'外の連動',base:.20}
+];
+function water10Model(r){
+ const prior=water94Model(r);if(!prior)return null;
+ const racers=r.racers;
+ const st=racers.map(x=>finite(x.average_start_timing));
+ const ability=racers.map(x=>finite(x.national_win_rate));
+ const motor=racers.map(x=>finite(x.motor_top_2_percent));
+ const value=(v,d)=>v===null?d:v;
+ const attack=Math.max(-1,Math.min(1,(value(st[1],.17)-value(st[2],.17))*13+(value(ability[2],5.5)-value(ability[1],5.5))*.12));
+ const outside=Math.max(-1,Math.min(1,(value(motor[3],35)-value(motor[1],35))*.018+(value(st[1],.17)-value(st[3],.17))*9));
+ const unnorm=[.46*Math.exp(-.48*attack-.18*outside),.34*Math.exp(.55*attack),.20*Math.exp(.40*outside)];
+ const total=unnorm.reduce((a,b)=>a+b,0),mix=unnorm.map(v=>v/total);
+ const bias=(o,k)=>{
+  const {a,b,c}=o;
+  if(k===0)return (a===1?1.18:1)*(b===2?1.36:1)*(c===3?1.10:1);
+  if(k===1)return (a===1?1.08:1)*(b===3?1.42:1)*(b===4?1.14:1)*(c===4?1.23:1);
+  return (a===1?1.04:1)*(b===4?1.37:1)*(b===5?1.13:1)*(c===5?1.31:1);
+ };
+ const scenarios=unnorm.map((_,k)=>{
+  const raw=prior.outcomes.map(o=>({...o,q:o.q*bias(o,k)}));
+  const z=raw.reduce((a,b)=>a+b.q,0);
+  return raw.map(o=>({...o,q:o.q/z}));
+ });
+ const lookup=scenarios.map(a=>new Map(a.map(o=>[`${o.a}-${o.b}-${o.c}`,o.q])));
+ const outcomes=prior.outcomes.map(o=>({...o,q:mix.reduce((t,w,k)=>t+w*lookup[k].get(`${o.a}-${o.b}-${o.c}`),0)})).sort((a,b)=>b.q-a.q);
+ const head=Array.from({length:6},(_,i)=>outcomes.filter(o=>o.a===i+1).reduce((t,o)=>t+o.q,0));
+ const conditionalSecond=Array.from({length:5},(_,i)=>outcomes.filter(o=>o.a===1&&o.b===i+2).reduce((t,o)=>t+o.q,0)/head[0]);
+ return {outcomes,head,conditionalSecond,top:outcomes.slice(0,6),courseData:prior.courseData,scenarios:WATER10_SCENARIOS.map((s,i)=>({name:s.name,p:mix[i]}))};
+}
+function water10SelectionReport(rows){
+ const models=[['cal','旧補正'],['v10','10.0展開']];
+ const thresholds=[.25,.35,.45,.55];
+ const parts=models.map(([key,label])=>{
+  const a=rows.filter(x=>x[key]);
+  const bands=thresholds.map(t=>{
+   const subset=a.filter(x=>x[key].mass4>=t);
+   return `<div class="metric"><span>4点確率合計 ${Math.round(t*100)}%以上</span><b>${subset.length}R / 的中 ${deepPct(subset.filter(x=>x[key].rank<=4).length,subset.length)}</b></div>`;
+  }).join('');
+  const inOnly=a.filter(x=>x.order[0]===1);
+  return `<div class="race"><strong>${label}：4点で絞れるレースの事前選別</strong><div class="metric"><span>全評価レース</span><b>${a.length}R / 4点的中 ${deepPct(a.filter(x=>x[key].rank<=4).length,a.length)}</b></div>${bands}<div class="metric"><span>1号艇1着が実際に成立したレース（参考・事後条件）</span><b>${inOnly.length}R / 4点的中 ${deepPct(inOnly.filter(x=>x[key].rank<=4).length,inOnly.length)}</b></div></div>`;
+ });
+ return `<div class="hint"><strong>選別の比較：</strong>4点確率合計による閾値は事前固定の例です。実際の着順を見て選別していません。件数が少ない区分は判断不可。回収率ではありません。</div>${parts.join('')}`;
+}
+function water10Compare(){
+ const status=$('water10Status'),out=$('water10Results');
+ if(!programCandidates.length){status.textContent='②で出走表を取得してください。';return}
+ const a=programCandidates.slice(0,10).map(r=>({r,old:currentModel(r),next:water10Model(r)})).filter(x=>x.old&&x.next);
+ if(!a.length){status.textContent='比較可能なレースがありません。';return}
+ const report=water94Inspect(programCandidates);
+ status.textContent=`比較 ${a.length}レース／コース別1着率 ${report.found.first.count}艇、2着率 ${report.found.second.count}艇、3着率 ${report.found.third.count}艇（計${report.athletes}艇）。`;
+ out.innerHTML=a.map(x=>{
+  const top=m=>m.outcomes.slice(0,4).map(o=>`${o.a}-${o.b}-${o.c}`);
+  const old=top(x.old),next=top(x.next);
+  const fmt=a=>a.map(y=>`<code>${y}</code>`).join('　');
+  const mass=m=>`${(100*m.outcomes.slice(0,4).reduce((t,o)=>t+o.q,0)).toFixed(1)}%`;
+  return `<div class="race"><strong>${escapeHtml(x.r.place)} ${x.r.num}R</strong><div class="metric"><span>旧モデル4点の合計予測確率</span><b>${mass(x.old)}</b></div><div class="metric"><span>展開モデル4点の合計予測確率</span><b>${mass(x.next)}</b></div><p class="sub">旧：${fmt(old)}</p><p class="sub">10.0：${fmt(next)}</p><p class="sub">展開の仮説配分：${x.next.scenarios.map(y=>`${y.name} ${(y.p*100).toFixed(0)}%`).join(' ／ ')}</p></div>`;
+ }).join('')+'<p class="warn">展開配分と4点確率は試験値です。展示・当日気象・実測コース別成績がない場合は反映していません。購入推奨ではありません。</p>';
+}
+$('water10Compare').onclick=water10Compare;
+$('water10Test').onclick=()=>{
+ const dummy=Array.from({length:6},(_,i)=>({name:`test${i}`,national_win_rate:6.3-i*.35,average_start_timing:.13+i*.01,motor_top_2_percent:40-i*2}));
+ const m=water10Model({racers:dummy});
+ const unique=new Set(m?.outcomes.map(x=>`${x.a}-${x.b}-${x.c}`));
+ const sum=m?.outcomes.reduce((a,b)=>a+b.q,0);
+ const ok=!!m&&m.outcomes.length===120&&unique.size===120&&Math.abs(sum-1)<1e-9&&m.outcomes.every(x=>x.q>0)&&checkIntegratedModel(m);
+ $('water10Status').textContent=ok?'計算診断合格：120通り、重複なし、確率合計100%、整合性確認済み。予測精度は未検証。':'計算診断不合格。展開モデルを利用しないでください。';
+};
+
+// WATER 11.5: schema probe and manual odds sanity check. Research only.
+(function(){
+ const q=id=>document.getElementById(id);
+ const date=q('w115date');if(!date)return;
+ const localYesterday=()=>{const d=new Date(Date.now()+9*3600000-86400000);return d.toISOString().slice(0,10)};
+ date.value=localYesterday();date.max=localYesterday();
+ const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ q('w115probe').onclick=async()=>{
+  const day=date.value.replaceAll('-',''),box=q('w115result');
+  if(!/^20\d{6}$/.test(day)||date.value>localYesterday()){box.textContent='昨日以前の日付を指定してください。';return}
+  box.textContent='公開データを確認中…';q('w115probe').disabled=true;
+  try{
+   const res=await fetch(`https://boatraceopenapi.github.io/api/v1/${day.slice(0,4)}/${day}.json`,{cache:'no-store'});
+   if(!res.ok)throw Error('HTTP '+res.status);
+   const data=await res.json();const stadiums=data?.programs?.stadiums||{};
+   const first=Object.values(stadiums).flatMap(st=>Object.values(st?.races||{})).find(r=>r&&r.racers&&Object.keys(r.racers).length);
+   if(!first)throw Error('対象日の出走表が見つかりません');
+   const racer=Object.values(first.racers)[0]||{};
+   const fields=Object.keys(racer).sort();
+   const odds=first.odds?.trifecta;
+   const oddsCount=odds&&typeof odds==='object'?Object.keys(odds).length:0;
+   const courseFields=fields.filter(k=>/course|local|waku|entry|place_rate|start/i.test(k));
+   box.innerHTML=`<strong>取得成功：${esc(date.value)}</strong><p>選手レコードの項目：${esc(fields.join(', '))}</p><p>コース・当地等に関係しそうな項目名：${esc(courseFields.join(', ')||'該当なし')}</p><p>サンプルレースの3連単オッズ階層：${oddsCount?'存在（第1階層 '+oddsCount+'キー）':'存在を確認できず'}</p><p class="muted">項目の存在だけを調べています。個人コース別の実測値・サンプル数や、締切前オッズの時点整合性は別途検証が必要です。1レースの標本なので、欠損有無は全レースの確認が必要です。</p>`;
+  }catch(e){box.textContent='取得・解析できませんでした：'+e.message+'。データ提供元または通信環境を確認してください。'}
+  finally{q('w115probe').disabled=false}
+ };
+ q('w115calc').onclick=()=>{
+  const raw=[1,2,3,4].map(i=>q('w115o'+i).value.trim());
+  if(raw.some(v=>v==='')){q('w115odds').textContent='4点すべてのオッズを入力してください。';return}
+  const o=raw.map(Number);if(o.some(x=>!Number.isFinite(x)||x<=1)){q('w115odds').textContent='オッズは1.0より大きい数字を入力してください。';return}
+  const inv=o.reduce((a,b)=>a+1/b,0),combined=1/inv,need=100/combined;
+  const pct=o.map(x=>100*(1/x)/inv);
+  q('w115odds').innerHTML=`<div class="metric"><span>均等払戻の合成オッズ</span><b>${combined.toFixed(3)}倍</b></div><div class="metric"><span>損益分岐の4点的中率</span><b>${need.toFixed(1)}%</b></div><div class="metric"><span>配分比率（1〜4点）</span><b>${pct.map(x=>x.toFixed(1)+'%').join(' / ')}</b></div><p class="muted">手数料・最低購入単位・オッズ変動を無視した理論値。合成オッズが1倍以下の場合、全点的中の想定でも利益は出ません。的中確率の推定精度が別途必要です。</p>`;
+ };
+})();
+</script><section class="panel" id="water115panel"><h2>⑭ WATER 11.5｜データ取得・オッズ検証準備</h2>
+<p class="muted">研究用。公開APIに実際に存在する項目を確認し、オッズの手入力による損益分岐点を試算します。予想モデル・買い目は変更しません。</p>
+<label>調査日（過去の日付） <input id="w115date" type="date"></label>
+<button type="button" id="w115probe">公開データの項目を調査</button><div id="w115result" class="race" aria-live="polite">未調査</div>
+<h3>3連単4点のオッズ試算（仮入力）</h3><p class="muted">各点のオッズを入力してください。4点とも同じ払戻額になるよう配分する場合の合成オッズと、必要的中率を計算します。実際のオッズは自動取得していません。</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px"><input id="w115o1" type="number" min="1" step="0.1" placeholder="買い目1 オッズ" style="width:45%"><input id="w115o2" type="number" min="1" step="0.1" placeholder="買い目2 オッズ" style="width:45%"><input id="w115o3" type="number" min="1" step="0.1" placeholder="買い目3 オッズ" style="width:45%"><input id="w115o4" type="number" min="1" step="0.1" placeholder="買い目4 オッズ" style="width:45%"></div>
+<button type="button" id="w115calc">合成オッズ・損益分岐点を計算</button><div id="w115odds" class="race" aria-live="polite">オッズ未入力</div>
+<p class="warn">注意：非公式データのオッズは取得時点によって変化します。過去の最終オッズを締切前に知っていたものとして検証してはいけません。購入判断には締切前に保存したオッズと予測確率が必要です。</p></section>
+<section class="panel" id="water116panel"><h2>⑮ WATER 11.6｜予測確率 × 3連単オッズ照合（研究用）</h2>
+<p class="muted">②で取得した出走表の旧モデル予測上位4点に、締切前に確認したオッズを手入力して比較します。オッズの自動取得・購入・正式予想の変更は行いません。</p>
+<label>比較するレース <select id="w116race"><option value="">先に②で出走表を取得</option></select></label>
+<button type="button" id="w116load">取得済みレースから候補を表示</button>
+<div id="w116inputs" class="race">未選択</div>
+<button type="button" id="w116calc">予測確率とオッズを照合</button>
+<div id="w116result" class="race" aria-live="polite">未計算</div>
+<p class="warn">重要：予測確率は実際の的中率と一致する保証がありません。計算上の期待回収率がプラスでも購入推奨ではありません。締切前に保存した予測とオッズだけが、将来の独立した検証に使えます。</p>
+</section>
+<script>
+// WATER 11.6: manually entered odds matched against unchanged baseline predictions.
+(function(){
+ const q=id=>document.getElementById(id), esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const select=q('w116race'),input=q('w116inputs'),output=q('w116result');
+ let chosen=null;
+ q('w116load').onclick=()=>{
+  const a=programCandidates.filter(r=>currentModel(r)?.outcomes?.length===120);
+  select.innerHTML='<option value="">レースを選択</option>'+a.map((r,i)=>`<option value="${i}">${esc(r.place)} ${Number(r.num)}R</option>`).join('');
+  select._races=a;chosen=null;input.textContent=a.length?'レースを選択してください。':'②で出走表を取得してください。';output.textContent='未計算';
+ };
+ select.onchange=()=>{
+  const i=Number(select.value),r=select.value!==''&&select._races?.[i];
+  chosen=r?{r,model:currentModel(r)}:null;output.textContent='未計算';
+  if(!chosen){input.textContent='レースを選択してください。';return}
+  const top=chosen.model.outcomes.slice(0,4);
+  input.innerHTML=`<strong>${esc(r.place)} ${Number(r.num)}R｜旧モデル上位4点</strong>`+
+   top.map((x,i)=>`<div class="metric"><label for="w116o${i}">${x.a}-${x.b}-${x.c}｜予測 ${(100*x.q).toFixed(2)}%　オッズ（倍）</label><input id="w116o${i}" type="number" min="1.01" step="0.1" inputmode="decimal" placeholder="締切前のオッズ"></div>`).join('')+
+   `<p class="muted">1号艇の予測1着確率 ${(100*chosen.model.head[0]).toFixed(1)}%。オッズは出走表から自動取得していません。</p>`;
+ };
+ q('w116calc').onclick=()=>{
+  if(!chosen){output.textContent='レースを選択してください。';return}
+  const o=[0,1,2,3].map(i=>q('w116o'+i)?.value.trim());
+  if(o.some(x=>!x)){output.textContent='4点すべてのオッズを入力してください。';return}
+  const odds=o.map(Number);
+  if(odds.some(x=>!Number.isFinite(x)||x<=1)){output.textContent='1.0倍を超える有効なオッズを入力してください。';return}
+  const top=chosen.model.outcomes.slice(0,4),p=top.reduce((a,x)=>a+x.q,0);
+  const inv=odds.reduce((a,x)=>a+1/x,0),combined=1/inv,breakEven=inv;
+  const dutchReturn=combined*p,weights=odds.map(x=>100/(x*inv));
+  const lines=top.map((x,i)=>`<div class="metric"><span>${x.a}-${x.b}-${x.c}｜${odds[i].toFixed(1)}倍｜予測 ${(x.q*100).toFixed(2)}%</span><b>単点期待倍率 ${(x.q*odds[i]).toFixed(3)}</b></div>`).join('');
+  output.innerHTML=`<strong>旧モデルと入力オッズの比較（仮試算）</strong>${lines}
+   <div class="metric"><span>4点合計予測的中率</span><b>${(100*p).toFixed(2)}%</b></div>
+   <div class="metric"><span>均等払戻の合成オッズ</span><b>${combined.toFixed(3)}倍</b></div>
+   <div class="metric"><span>損益分岐的中率</span><b>${(100*breakEven).toFixed(2)}%</b></div>
+   <div class="metric"><span>モデル確率に基づく仮の期待回収率</span><b>${(100*dutchReturn).toFixed(1)}%</b></div>
+   <div class="metric"><span>仮の資金配分（各点%）</span><b>${weights.map(x=>x.toFixed(1)).join(' / ')}</b></div>
+   <p class="warn">これは入力したオッズと未検証のモデル確率による算術結果です。確率の較正誤差、オッズ変動、100円単位の端数、予想時点の情報漏洩は考慮していません。期待回収率は実績回収率ではありません。</p>`;
+ };
+})();
+</script>
+
+<script>
+// WATER 11.7: immutable manual odds ledger linked to immutable WATER 9.3 predictions.
+// It never places bets and does not infer that manual odds are pre-race prices.
+(()=>{
+ const el=id=>document.getElementById(id),key='water117_odds_ledger_v1';
+ const read=()=>{try{const a=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(a)?a:[]}catch{return []}};
+ const write=a=>localStorage.setItem(key,JSON.stringify(a));
+ const snapshots=()=>typeof getSnapshots==='function'?getSnapshots():[];
+ const money=n=>Number(n).toLocaleString('ja-JP')+'円';
+ const label=x=>`${x.day} ${x.place} ${x.num}R`;
+ const opts=el('w117race'),form=el('w117form'),status=el('w117status'),out=el('w117results');
+ const top4=x=>x.outcomes.slice().sort((a,b)=>b.q-a.q).slice(0,4);
+ let selected=null;
+ function refresh(){const a=snapshots();opts.innerHTML='<option value="">保存済み予測を選択</option>'+a.map(x=>`<option value="${x.id}">${label(x)}${read().some(z=>z.id===x.id)?'（オッズ保存済み）':''}</option>`).join('');selected=null;form.textContent='予測を選択してください';}
+ el('w117refresh').onclick=refresh;
+ opts.onchange=()=>{
+  selected=snapshots().find(x=>x.id===opts.value)||null;
+  if(!selected){form.textContent='予測を選択してください';return}
+  const locked=read().find(x=>x.id===selected.id);
+  if(locked){form.textContent='このレースのオッズは保存済みです。後から変更できません。';return}
+  const picks=top4(selected);
+  form.innerHTML=`<strong>${label(selected)}｜予測保存 ${selected.savedAt}</strong>`+
+   picks.map((x,i)=>`<label for="w117o${i}">${x.a}-${x.b}-${x.c}｜予測 ${(x.q*100).toFixed(2)}%｜手入力オッズ</label><input id="w117o${i}" type="number" min="1.01" step="0.1" inputmode="decimal" placeholder="例：8.5">`).join('')+
+   '<p class="muted">オッズを4点すべて入力してください。100円単位の均等払戻配分を計算します。</p>';
+ };
+ // Largest remainder allocation in 100-yen units; minimum one unit per selection.
+ function allocate(odds,total){const units=total/100;if(!Number.isInteger(units)||units<4)return null;
+  const inv=odds.map(o=>1/o),sum=inv.reduce((a,b)=>a+b,0),ideal=inv.map(v=>units*v/sum);
+  const counts=ideal.map(v=>Math.max(1,Math.floor(v)));let remaining=units-counts.reduce((a,b)=>a+b,0);
+  if(remaining<0){return null}
+  while(remaining-- >0){let best=0;for(let i=1;i<4;i++)if(ideal[i]-counts[i]>ideal[best]-counts[best])best=i;counts[best]++}
+  return counts.map(n=>n*100);
+ }
+ el('w117save').onclick=()=>{
+  if(!selected){status.textContent='予測を選択してください';return}
+  const a=read();if(a.some(x=>x.id===selected.id)){status.textContent='同一レースのオッズは上書きできません';return}
+  const raw=[0,1,2,3].map(i=>el('w117o'+i)?.value.trim());
+  if(raw.some(x=>!x)){status.textContent='4点のオッズを入力してください';return}
+  const odds=raw.map(Number),total=Number(el('w117stake').value);
+  if(odds.some(x=>!Number.isFinite(x)||x<=1)||!Number.isInteger(total)||total<400||total%100!==0){status.textContent='オッズは1倍超、仮想投資額は400円以上・100円単位にしてください';return}
+  const amounts=allocate(odds,total);if(!amounts){status.textContent='資金配分を計算できません';return}
+  const picks=top4(selected).map((x,i)=>({order:`${x.a}-${x.b}-${x.c}`,q:x.q,odds:odds[i],amount:amounts[i]}));
+  const record={schema:1,id:selected.id,day:selected.day,place:selected.place,num:selected.num,predictionSavedAt:selected.savedAt,oddsSavedAt:new Date().toISOString(),source:'manual_unverified',amount:total,picks};
+  try{a.push(record);write(a);status.textContent=`仮想投資 ${money(total)}、4点のオッズを固定保存しました。購入は行っていません。`;refresh();report()}
+  catch(e){status.textContent='保存できませんでした。ブラウザーの保存容量をご確認ください'}
+ };
+ function report(){const a=read(),ss=new Map(snapshots().map(x=>[x.id,x]));
+  if(!a.length){out.textContent='保存済みのオッズ記録はありません';return}
+  const settled=a.filter(x=>ss.get(x.id)?.result?.order?.length===3);
+  let staked=0,returned=0,hits=0;
+  const lines=a.slice().reverse().map(x=>{
+   const snap=ss.get(x.id),order=snap?.result?.order?.join('-'),winner=x.picks.find(p=>p.order===order);
+   const payout=order?(winner?Math.round(winner.amount*winner.odds):0):null;
+   if(payout!==null){staked+=x.amount;returned+=payout;if(winner)hits++}
+   const combined=1/x.picks.reduce((t,p)=>t+1/p.odds,0),mass=x.picks.reduce((t,p)=>t+p.q,0);
+   return `<div class="race"><strong>${label(x)}</strong><div class="sub">予測保存 ${x.predictionSavedAt}／オッズ記録 ${x.oddsSavedAt}（手入力・時点未確認）</div>`+
+    `<div class="metric"><span>仮想投資</span><b>${money(x.amount)}</b></div>`+
+    x.picks.map(p=>`<div class="metric"><span>${p.order}｜${p.odds.toFixed(1)}倍</span><b>${money(p.amount)}</b></div>`).join('')+
+    `<div class="metric"><span>合成オッズ／4点予測確率</span><b>${combined.toFixed(2)}倍／${(mass*100).toFixed(1)}%</b></div>`+
+    `<div class="metric"><span>結果</span><b>${order?order+' ／ 仮想払戻 '+money(payout):'未照合'}</b></div></div>`;
+  }).join('');
+  out.innerHTML=`<div class="hint"><strong>11.7｜仮想収支（オッズ時点未確認）</strong><div class="metric"><span>保存件数／結果照合済み</span><b>${a.length}件／${settled.length}件</b></div><div class="metric"><span>的中</span><b>${hits}件</b></div><div class="metric"><span>仮想投資／仮想払戻</span><b>${money(staked)}／${money(returned)}</b></div><div class="metric"><span>仮想回収率</span><b>${staked?(returned/staked*100).toFixed(1)+'%':'未集計'}</b></div></div><p class="warn">払戻は入力オッズ×100円単位の配分から計算した仮想値です。締切時の確定オッズとは限らず、過去レースへの後付け入力も防げません。収益性の根拠として使用しないでください。</p>`+lines;
+ }
+ el('w117report').onclick=report;
+ el('w117backup').onclick=()=>{const data=JSON.stringify({format:'WATER117_ODDS_LEDGER',exportedAt:new Date().toISOString(),records:read()},null,2),blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='water117_odds_ledger.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)};
+ refresh();report();
+})();
+</script>
+<script>
+// WATER 11.8: odds provenance and research-only selection audit.
+(()=>{
+ const el=id=>document.getElementById(id),key='water117_odds_ledger_v1';
+ const get=()=>{try{const a=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(a)?a:[]}catch{return []}};
+ const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ let audit=[];
+ function run(){
+  const min=Number(el('w118min').value),prob=Number(el('w118prob').value);
+  if(!Number.isFinite(min)||min<=1||!Number.isFinite(prob)||prob<0||prob>100){el('w118result').textContent='合成オッズは1倍超、確率は0〜100%で入力してください';return}
+  const records=get();
+  audit=records.map(x=>{
+   const picks=Array.isArray(x.picks)?x.picks:[];
+   const good=picks.length===4&&picks.every(p=>Number.isFinite(p.odds)&&p.odds>1&&Number.isFinite(p.q)&&p.q>=0&&Number.isFinite(p.amount)&&p.amount>=100);
+   const combined=good?1/picks.reduce((t,p)=>t+1/p.odds,0):null;
+   const mass=good?picks.reduce((t,p)=>t+p.q,0):null;
+   const pre=Number.isFinite(Date.parse(x.predictionSavedAt))&&Number.isFinite(Date.parse(x.oddsSavedAt))&&Date.parse(x.predictionSavedAt)<=Date.parse(x.oddsSavedAt);
+   const pass=good&&combined>=min&&mass*100>=prob;
+   return {day:x.day,place:x.place,num:x.num,combined,mass,pass,pre,source:x.source||'unknown',amount:x.amount,valid:good};
+  });
+  const candidates=audit.filter(x=>x.pass).length,ordered=audit.filter(x=>x.pre).length,invalid=audit.filter(x=>!x.valid).length;
+  el('w118result').innerHTML=`<strong>11.8｜購入条件の研究用監査</strong>
+   <div class="metric"><span>保存記録</span><b>${audit.length}件</b></div>
+   <div class="metric"><span>入力データに不備</span><b>${invalid}件</b></div>
+   <div class="metric"><span>入力した条件に一致</span><b>${candidates}件</b></div>
+   <div class="metric"><span>予測保存→オッズ保存の順序</span><b>${ordered}件</b></div>
+   <div class="metric"><span>締切前オッズの時刻・真正性を検証済み</span><b>0件</b></div>
+   <p class="warn">保存順序が正しくても、実際の締切前の価格であることは証明できません。条件一致は研究用の参考値です。</p>`+
+   audit.slice().reverse().map(x=>`<div class="metric"><span>${esc(x.day)} ${esc(x.place)} ${esc(x.num)}R｜${esc(x.source)}</span><b>${x.valid?x.combined.toFixed(2)+'倍／'+(x.mass*100).toFixed(1)+'%':'入力不備'}｜${x.pass?'条件一致':'条件外'}</b></div>`).join('');
+ }
+ el('w118run').onclick=run;
+ el('w118csv').onclick=()=>{
+  run();const rows=[['date','venue','race','combined_odds','predicted_top4_probability','matches_threshold','prediction_before_odds','odds_source','stake_yen','input_valid'],...audit.map(x=>[x.day,x.place,x.num,x.combined??'',x.mass??'',x.pass,x.pre,x.source,x.amount,x.valid])];
+  const csv='\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='water118_odds_audit.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+ };
+ run();
+})();
+</script>
+<section class="card" id="water119"><h2>⑲ WATER 11.9｜1号艇イン逃げ率65%以上・選別検証</h2><p class="muted">最初の条件は「1号艇選手の個人1コース1着率65%以上」のみ。2号艇の逃がし率・外側選手の強さは選別に使いません。WATERの予測1着確率と混同しません。</p><div class="race" id="w124Import"><strong>選手別・過去成績CSV（任意）</strong><p class="muted">登録番号・レース日・実際の進入コース・着順が分かるCSVを読み込みます。対象レースより前の1コース成績だけで逃げ率を計算します。データがなければ判定不可です。</p><input id="w124File" type="file" accept=".csv,text/csv"><p id="w124Status" class="muted">未読込（現在の出走表APIだけでは判定できない可能性があります）</p><details><summary>必要なCSVの列名・注意点</summary><p class="muted">1行＝過去の1出走。列名：racer_id,date,course,finish。例：4320,2026-10-01,1,1。dateはYYYY-MM-DD、courseは実際の進入コース1〜6、finishは着順1〜6（失格等は空欄可）。1コース出走が10件未満の選手は判定不可。列名が異なるサイトのCSVは、そのままでは読み込めません。外部サイトの利用規約を確認してください。</p></details></div><div class="grid"><div><label for="w119End">検証最終日</label><input id="w119End" type="date"></div><div><label for="w119Days">検証日数</label><select id="w119Days"><option value="7">7日</option><option value="14">14日</option><option value="21" selected>21日</option></select></div></div><button id="w119Run" style="width:100%;margin-top:10px">65%以上のレースを抽出・3点検証</button><button id="w119Csv" class="secondary" style="width:100%;margin-top:8px" disabled>選別明細CSVを保存</button><p id="w119Status" class="muted" role="status">未実行</p><div id="w119Result"></div><p class="warn">個人1コース実績がデータに存在しない場合は推測値で代用せず「判定不可」にします。過去出走表の時点も未確認のため、結果は参考検証です。</p></section><script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id), end=$('w119End'),status=$('w119Status'),out=$('w119Result'),btn=$('w119Run'),csv=$('w119Csv');
+let historyByRacer=new Map();
+function csvRows(text){
+ const rows=[];let row=[],cell='',quoted=false;
+ for(let i=0;i<text.length;i++){
+  const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++}else quoted=!quoted}
+  else if(c===','&&!quoted){row.push(cell.trim());cell=''}
+  else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell.trim());if(row.some(Boolean))rows.push(row);row=[];cell=''}
+  else cell+=c;
+ }
+ if(quoted)throw Error('CSVの引用符が閉じられていません');row.push(cell.trim());if(row.some(Boolean))rows.push(row);return rows;
+}
+$('w124File').addEventListener('change',async ev=>{
+ const f=ev.target.files?.[0],msg=$('w124Status');if(!f){msg.textContent='未読込';return}
+ try{
+  if(f.size>25000000)throw Error('CSVは25MB以内にしてください');
+  const rows=csvRows((await f.text()).replace(/^\uFEFF/,''));const hdr=rows.shift()?.map(x=>x.toLowerCase());
+  const columns=['racer_id','date','course','finish'],idx=columns.map(k=>hdr?.indexOf(k)??-1);
+  if(idx.some(i=>i<0))throw Error('必要な列名がありません：'+columns.join(', '));
+  let accepted=0,skipped=0;
+  for(const row of rows){const [id,date,course,finish]=idx.map(i=>row[i]??'');
+   if(!/^\d{4}$/.test(id)||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||!/^[1-6]$/.test(course)||!(finish===''||/^[1-6]$/.test(finish))){skipped++;continue}
+   if(!historyByRacer.has(id))historyByRacer.set(id,[]);
+   historyByRacer.get(id).push({date,course:Number(course),win:finish==='1'});accepted++;
+  }
+  if(!accepted)throw Error('有効な履歴がありません');
+  for(const a of historyByRacer.values())a.sort((x,y)=>x.date.localeCompare(y.date));
+  msg.textContent=`読込成功：${historyByRacer.size}選手、${accepted}件。形式不一致 ${skipped}件。過去時点の計算に利用できます。`;
+ }catch(e){historyByRacer=new Map();msg.textContent='読込失敗：'+String(e?.message||e)}
+});
+// Import a single player's verified history from a provider CSV, retaining the same historical cut-off.
+window.water125Import = function(rows, id, columnMap){
+ const existing=historyByRacer.get(id)||[];const priorCounts=new Map();const merged=new Map(existing.map(x=>{const base=x.date+'|'+x.course+'|'+(x.finish??(x.win?'1':'other'));priorCounts.set(base,(priorCounts.get(base)||0)+1);return [base+'|'+priorCounts.get(base),x]}));
+ let added=0;const seen=new Map();
+ for(const r of rows){
+  const date=String(r[columnMap.date]||'').trim(), course=Number(r[columnMap.course]), finish=String(r[columnMap.finish]||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||course<1||course>6||!Number.isInteger(course)||!(/^[1-6]$/.test(finish)||finish===''))continue;
+  const record={date,course,finish,win:finish==='1'};const key=date+'|'+course+'|'+finish+'|'+(seen.set(date+'|'+course+'|'+finish,(seen.get(date+'|'+course+'|'+finish)||0)+1),seen.get(date+'|'+course+'|'+finish));
+  if(!merged.has(key)){merged.set(key,record);added++}
+ }
+ const records=[...merged.values()].sort((a,b)=>a.date.localeCompare(b.date));historyByRacer.set(id,records);
+ return {added,total:records.length,courseOne:records.filter(x=>x.course===1).length};
+};
+function historyRate(one,date){
+ const id=String(one?.registration_number??one?.racer_registration_number??one?.racer_number??one?.number??'').trim();
+ if(!/^\d{4}$/.test(id))return null;
+ const arr=historyByRacer.get(id);if(!arr)return null;
+ const prior=arr.filter(x=>x.date<date&&x.course===1);if(prior.length<10)return null;
+ return {rate:100*prior.filter(x=>x.win).length/prior.length,key:'local_history_csv',sample:prior.length};
+}
+
+end.value=localDay(1);
+let audit=[];
+const percent=(a,b)=>b?(100*a/b).toFixed(1)+'%':'—';
+const quote=x=>'"'+String(x??'').replaceAll('"','""')+'"';
+function firstCourseRate(r){
+ // Only direct, explicitly named individual course-one records; no national rate, model estimate, or venue-wide prior.
+ const keys=['course_1_first_rate','course_1_win_rate','course1_first_rate','course1_win_rate','first_course_win_rate','first_course_first_rate','course_1_1st_percent','course1_1st_percent'];
+ for(const k of keys){const raw=r?.[k];if(raw===null||raw===undefined||raw==='')continue;const v=Number(raw);if(!Number.isFinite(v)||v<0||v>100)continue;return {rate:v<=1?v*100:v,key:k};}
+ return null;
+}
+btn.onclick=async()=>{
+ const last=end.value,days=Number($('w119Days').value);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(last)||last>=localDay()){status.textContent='昨日以前の日付を指定してください';return;}
+ btn.disabled=true;csv.disabled=true;out.innerHTML='';audit=[];
+ let fetched=0,failed=0,total=0,unknown=0,below=0,eligible=0,valid=0,firstWins=0,hit3=0,hit4=0,nonInTop3=0;
+ const fieldCounts={};
+ try{
+ for(let i=days-1;i>=0;i--){
+ const date=deepDay(last,-i),ds=date.replaceAll('-','');status.textContent=`取得中 ${days-i}/${days}日：${date}`;
+ let payload;
+ try{const resp=await fetch(`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`,{cache:'no-store'});if(!resp.ok)throw Error('HTTP '+resp.status);payload=await resp.json();if(!payload?.programs?.stadiums)throw Error('出走表なし');fetched++;}catch(e){failed++;continue;}
+ for(const [id,stadium] of Object.entries(payload.programs.stadiums)){
+ const venue=names[Number(id)-1];if(!venue||!enabled.includes(venue))continue;
+ for(const [num,rr] of Object.entries(stadium?.races||{})){
+ total++;
+ const one=rr?.racers?.['1'];const course=historyRate(one,date)||firstCourseRate(one);
+ if(!course){unknown++;continue;}
+ fieldCounts[course.key]=(fieldCounts[course.key]||0)+1;
+ if(course.rate<65){below++;continue;}
+ eligible++;
+ const order=getFinishOrder(rr),r=screenRace(rr,venue,Number(num));const m=r?modelRace(r):null;
+ if(!order||!m){audit.push({date,venue,race:num,course_rate:course.rate,source_field:course.key,sample:course.sample??"",status:'結果・予測欠損'});continue;}
+ const inTop=m.outcomes.filter(x=>x.a===1).slice(0,4);
+ const rank=inTop.findIndex(x=>x.b===order[1]&&x.c===order[2]);
+ const won=order[0]===1,top3=won&&rank>=0&&rank<3,top4=won&&rank>=0&&rank<4;
+ valid++;if(won)firstWins++;if(top3)hit3++;if(top4)hit4++;
+ if(m.outcomes.slice(0,3).some(x=>x.a!==1))nonInTop3++;
+ audit.push({date,venue,race:num,course_rate:course.rate,source_field:course.key,sample:course.sample??"",status:'集計',actual:order.join('-'),first_win:won,top3_hit:top3,top4_hit:top4,top3_choices:inTop.slice(0,3).map(x=>[x.a,x.b,x.c].join('-')).join(' / ')});
+ }
+ }
+ }
+ status.textContent=`取得 ${fetched}/${days}日、対象 ${total}R、65%以上 ${eligible}R、集計可能 ${valid}R。`;
+ out.innerHTML=`<div class="race"><strong>65%以上の条件による選別結果</strong><div class="metric"><span>対象レース</span><b>${total}R</b></div><div class="metric"><span>個人1コース率が取得できず判定不可</span><b>${unknown}R</b></div><div class="metric"><span>65%未満</span><b>${below}R</b></div><div class="metric"><span>65%以上</span><b>${eligible}R</b></div><div class="metric"><span>着順・予測が揃ったレース</span><b>${valid}R</b></div><div class="metric"><span>実際の1号艇1着率</span><b>${percent(firstWins,valid)}</b></div><div class="metric"><span>1頭固定・上位3点的中率</span><b>${percent(hit3,valid)}</b></div><div class="metric"><span>1頭固定・上位4点的中率</span><b>${percent(hit4,valid)}</b></div><div class="metric"><span>通常予測の上位3点に1頭以外が混在</span><b>${nonInTop3}R</b></div><p class="muted">取得失敗 ${failed}日。採用した元データ項目：${Object.entries(fieldCounts).map(([k,n])=>escapeHtml(k)+' '+n+'R').join('、')||'なし'}。モデルの通常上位3点ではなく、1号艇1着固定の条件付き上位3点を比較しています。オッズは未評価。</p>${eligible===0?'<p class="warn">個人1コース率を確認できず、65%以上の検証は未成立です。履歴CSVの読み込みと登録番号の照合を確認してください。</p>':''}</div>`;
+ csv.disabled=!audit.length;
+ }catch(e){status.textContent='検証エラー：'+String(e?.message||e)}finally{btn.disabled=false;}
+};
+csv.onclick=()=>{if(!audit.length)return;const keys=[...new Set(audit.flatMap(x=>Object.keys(x)))],data=[keys.join(','),...audit.map(x=>keys.map(k=>quote(x[k])).join(','))].join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+data],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='water119_escape65_audit.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)};
+})();
+</script>
+
+<section class="card" id="water120"><h2>⑳ WATER 12.0｜65%以上検証・データ取得診断</h2>
+<p class="muted">個人1コース1着率が見つからない場合、出走表の1号艇データ構造を確認します。推測した値は65%以上の判定に使用しません。</p>
+<div class="grid"><div><label for="w120Date">調査日</label><input id="w120Date" type="date"></div><div><label for="w120Max">表示する標本数</label><select id="w120Max"><option value="3">3レース</option><option value="8" selected>8レース</option><option value="20">20レース</option></select></div></div>
+<button id="w120Inspect" style="width:100%;margin-top:10px">出走表データを調査</button><button id="w120Export" class="secondary" style="width:100%;margin-top:8px" disabled>診断JSONを保存</button>
+<p id="w120Status" class="muted" role="status">未実行</p><div id="w120Result"></div>
+<p class="warn">この機能は取得データの構造を調べるものです。65%以上のレースを確認できるまで、的中率を実証したとは扱いません。</p></section>
+<script>
+(()=>{
+'use strict';
+const el=id=>document.getElementById(id),day=el('w120Date'),run=el('w120Inspect'),save=el('w120Export'),status=el('w120Status'),result=el('w120Result');
+day.value=localDay(1);
+let report=null;
+const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function summarize(o,depth=0){
+ if(o===null||typeof o!=='object')return o;
+ if(depth>=3)return Array.isArray(o)?`[array ${o.length}]`:`{object ${Object.keys(o).length} keys}`;
+ if(Array.isArray(o))return o.slice(0,5).map(x=>summarize(x,depth+1));
+ return Object.fromEntries(Object.entries(o).slice(0,45).map(([k,v])=>[k,summarize(v,depth+1)]));
+}
+run.onclick=async()=>{
+ const date=day.value,ds=date.replaceAll('-','');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){status.textContent='調査日を指定してください';return;}
+ run.disabled=true;save.disabled=true;report=null;result.innerHTML='';status.textContent='出走表を取得しています…';
+ try{
+ const url=`https://boatraceopenapi.github.io/api/v1/${ds.slice(0,4)}/${ds}.json`;
+ const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);
+ const payload=await response.json(),stadiums=payload?.programs?.stadiums;
+ if(!stadiums||typeof stadiums!=='object')throw Error('programs.stadiums がありません');
+ const limit=Number(el('w120Max').value),samples=[],fieldCounts={},potentialFields={},venues=[];
+ let total=0,hasRacer=0;
+ for(const [id,stadium] of Object.entries(stadiums)){
+ const venue=names[Number(id)-1];if(!venue||!enabled.includes(venue))continue;
+ venues.push(venue);
+ for(const [raceNo,race] of Object.entries(stadium?.races||{})){
+ total++;
+ const racer=race?.racers?.['1'];if(!racer||typeof racer!=='object')continue;
+ hasRacer++;
+ for(const [k,v] of Object.entries(racer)){
+ fieldCounts[k]=(fieldCounts[k]||0)+1;
+ if(/course|escape|nige|win|first|1st|rate|percent|着|逃/i.test(k))potentialFields[k]=(potentialFields[k]||0)+1;
+ }
+ if(samples.length<limit)samples.push({venue,race:raceNo,racer:summarize(racer),racer_keys:Object.keys(racer)});
+ }
+ }
+ report={version:'12.0',date,source_url:url,source_status:'historical_snapshot_timing_unverified',eligible_venues:venues,examined_races:total,races_with_racer1:hasRacer,first_racer_field_counts:fieldCounts,possible_rate_fields:potentialFields,samples};
+ status.textContent=`調査完了：対象 ${total}R、1号艇データあり ${hasRacer}R。`;
+ result.innerHTML=`<div class="race"><strong>取得項目の診断結果</strong><div class="metric"><span>調査対象レース</span><b>${total}R</b></div><div class="metric"><span>1号艇のデータあり</span><b>${hasRacer}R</b></div><p class="muted">1号艇の全項目名（出現数）：</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px">${escape(Object.entries(fieldCounts).sort((a,b)=>b[1]-a[1]).map(([k,n])=>k+' ('+n+')').join('、')||'項目なし')}</pre><p class="muted">逃げ率に関係しそうな項目名：</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px">${escape(Object.keys(potentialFields).join('、')||'候補なし')}</pre><details><summary>1号艇データの標本を確認</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px">${escape(JSON.stringify(samples,null,2))}</pre></details><p class="warn">項目名が見つかっても、個人1コース1着率であると確認できるまで65%以上の抽出には採用しません。</p></div>`;
+ save.disabled=false;
+ }catch(e){status.textContent='診断失敗：'+String(e?.message||e)}finally{run.disabled=false;}
+};
+save.onclick=()=>{if(!report)return;const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='water120_diagnostic.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)};
+})();
+</script>
+<style>
+/* WATER 12.2: streamlined navigation, prediction algorithms unchanged */
+.water-hidden{display:none!important}
+#waterNav{position:sticky;top:0;z-index:50;background:#f2f5f9;padding:10px 12px;border-bottom:1px solid #cbd5e1;box-shadow:0 2px 6px #0001}
+#waterNav .navgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-width:820px;margin:auto}
+#waterNav button{font-size:14px;line-height:1.3;min-height:46px;padding:9px 6px;border:1px solid #b5c5d8;border-radius:9px;background:white;color:#19324d;font-weight:700}
+#waterNav button[aria-pressed=true]{background:#123a5d;color:white}
+#waterGuide{max-width:820px;margin:8px auto 0;font-size:13px;color:#334155;line-height:1.5}
+.water-result-compact{max-height:290px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;padding:6px}
+#waterTopNotice{padding:10px 12px;background:#fff7e6;color:#744b12;border-radius:8px;margin:8px 0;font-size:13px}
+</style>
+<script>
+(()=>{
+ 'use strict';
+ const sections=[...document.querySelectorAll('main section, body > section')];
+ const byId=id=>document.getElementById(id);
+ const categories={predict:[],verify:[],money:[],dev:[]};
+ const verifyIds=new Set(['water119']);
+ const moneyIds=new Set(['water117panel','water118panel','water115panel','water116panel','snapshotCard']);
+ const devIds=new Set(['water120','modelLab','deepLab','course103Lab','order101Lab','water10Lab']);
+ sections.forEach(sec=>{
+   const id=sec.id||'';
+   const heading=sec.querySelector('h2')?.textContent||'';
+   let cat='predict';
+   if(verifyIds.has(id)||/⑨ 過去レース|時系列検証|過去.*検証/.test(heading))cat='verify';
+   else if(moneyIds.has(id)||/⑩ 保存/.test(heading))cat='money';
+   else if(devIds.has(id)||/診断|⑧ 計算エンジン|⑦ 公開データ/.test(heading))cat='dev';
+   categories[cat].push(sec);
+ });
+ const nav=document.createElement('div');nav.id='waterNav';
+ nav.innerHTML='<div class="navgrid"><button type="button" data-tab="predict">① レース予想</button><button type="button" data-tab="verify">② 過去データ検証</button><button type="button" data-tab="money">③ 収支・保存</button><button type="button" data-tab="dev">④ 開発・診断</button></div><div id="waterGuide" aria-live="polite"></div>';
+ const header=document.querySelector('header');if(header)header.insertAdjacentElement('afterend',nav);else document.body.prepend(nav);
+ const guide=byId('waterGuide');
+ const descriptions={predict:'予想に使う項目だけを表示します。',verify:'まず「65%以上の検証」を確認してください。',money:'オッズと仮想収支の保存・確認です。',dev:'まず「データ取得を確認」を使用してください。'};
+ function switchTab(tab){
+  Object.entries(categories).forEach(([name,arr])=>arr.forEach(sec=>sec.classList.toggle('water-hidden',name!==tab)));
+  nav.querySelectorAll('button[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===tab)));
+  guide.textContent=descriptions[tab];
+  window.scrollTo({top:0,behavior:'instant'});
+ }
+ nav.querySelectorAll('button[data-tab]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
+ // Keep diagnostic output readable without allowing it to fill the whole page.
+ ['w120Result','w119Result','modelTestResult'].forEach(id=>{const el=byId(id);if(el)el.classList.add('water-result-compact')});
+ // Make the current verification workflow obvious without changing its calculations.
+ const v=byId('water119');if(v){const note=document.createElement('p');note.id='waterTopNotice';note.textContent='今回の検証条件：1号艇の個人イン逃げ率65%以上（65〜100%を含む）。逃がし率などの追加条件は使用しません。';v.insertBefore(note,v.querySelector('.grid'))}
+ switchTab('verify');
+})();
+</script>
+
+<style>
+#waterNav{position:sticky;top:0}
+#waterQuick{max-width:820px;margin:10px auto 0;padding:12px;border-radius:12px;background:#fff;border:1px solid #cbd5e1}
+#waterQuick h3{font-size:17px;margin:0 0 7px;color:#173451}
+#waterQuick p{margin:4px 0 8px;color:#475569;font-size:13px;line-height:1.5}
+#waterQuick button{width:100%;background:#1768bc;color:#fff;border:0;min-height:48px;font-size:16px}
+.water-legacy{margin:14px auto;max-width:820px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;padding:10px}
+.water-legacy>summary{cursor:pointer;font-weight:700;color:#173451;padding:8px}
+.water-legacy>section{margin:12px 0!important}
+#water120 #w120Result{max-height:none;overflow:visible;border:0;padding:0}
+#water120 #w120Result pre{max-height:160px;overflow:auto}
+#water120 .water-raw-details{margin-top:8px}
+#water120 .water-raw-details>summary{cursor:pointer;font-weight:700}
+#waterNav .navgrid button{font-size:14px}
+</style>
+<script>
+(()=>{
+ 'use strict';
+ const nav=document.getElementById('waterNav');if(!nav)return;
+ const guide=document.getElementById('waterGuide');
+ const quick=document.createElement('div');quick.id='waterQuick';nav.appendChild(quick);
+ const categories={predict:[],verify:[],money:[],dev:[]};
+ const tabs=[...nav.querySelectorAll('button[data-tab]')];
+ // Move the relevant action to the top of each tab; archive older research panels.
+ const primary={verify:document.getElementById('water119'),dev:document.getElementById('water120')};
+ const legacy={};
+ for(const tab of ['verify','dev']){
+  const main=primary[tab];if(!main)continue;
+  const others=[...document.querySelectorAll('section.card,section.panel')].filter(s=>s!==main&&!s.classList.contains('water-hidden')&&false);
+  // A panel's visibility is controlled by the original navigation; wrap older panels within their tab.
+  const candidates=[...document.querySelectorAll('section.card,section.panel')].filter(s=>s!==main && (tab==='verify'? /⑨ 過去レース|時系列検証|過去.*検証/.test(s.querySelector('h2')?.textContent||'') : /診断|⑧ 計算エンジン|⑦ 公開データ/.test(s.querySelector('h2')?.textContent||'') ));
+  const fold=document.createElement('details');fold.className='water-legacy';fold.dataset.waterTab=tab;
+  fold.innerHTML='<summary>過去の研究・診断機能（必要なときだけ開く）</summary>';
+  candidates.forEach(s=>{if(s!==primary.verify&&s!==primary.dev)fold.appendChild(s)});
+  main.insertAdjacentElement('afterend',fold);legacy[tab]=fold;
+ }
+ // Keep the selected tab's primary panel immediately below the menu.
+ const originalSwitch=tab=>{
+  for(const [name,fold] of Object.entries(legacy))fold.style.display=name===tab?'block':'none';
+  const labels={predict:['① レース予想','日付と場を選び、出走表を取得します。'],verify:['② 65%以上の検証','個人1コース1着率65〜100%を対象に、3連単3点・4点を比較します。'],money:['③ 収支・保存','保存済みの予測とオッズを確認します。'],dev:['④ データ取得を確認','出走表に個人1コース逃げ率が含まれているか確認します。']};
+  const [title,description]=labels[tab]||labels.verify;
+  quick.innerHTML='<h3>'+title+'</h3><p>'+description+'</p>';
+  if(tab==='verify'||tab==='dev'){
+   const btn=document.createElement('button');btn.type='button';btn.textContent=tab==='verify'?'65%以上の検証へ':'出走表のデータ確認へ';
+   btn.onclick=()=>{const el=primary[tab];if(el)el.scrollIntoView({behavior:'smooth',block:'start'})};quick.appendChild(btn);
+  }
+ };
+ tabs.forEach(btn=>btn.addEventListener('click',()=>originalSwitch(btn.dataset.tab)));
+ originalSwitch('verify');
+ // Summarize the technical diagnostic before showing the raw field dump.
+ const result=document.getElementById('w120Result');
+ if(result){
+  const observer=new MutationObserver(()=>{
+   if(!result.querySelector('.race')||result.querySelector('.water-summary'))return;
+   const raw=result.querySelector('.race');
+   const keys=raw.querySelectorAll('pre');
+   const full=[...keys].map(x=>x.textContent||'').join(' ');
+   const hasExact=/(?:course[_-]?1[_-]?(?:win|first|escape)|first[_-]?course[_-]?win|1コース.*(?:1着|逃げ))/i.test(full);
+   const summary=document.createElement('div');summary.className='water-summary';
+   summary.style.cssText='padding:12px;border:1px solid #b5c5d8;border-radius:10px;background:#f8fafc;margin:10px 0;line-height:1.6';
+   summary.innerHTML='<strong>今回の確認結果</strong><p style="margin:6px 0">'+(hasExact?'個人1コース成績に関係する項目候補が見つかりました。定義の確認が必要です。':'出走表は取得できていますが、個人1コース逃げ率の項目は確認できません。')+'</p><small>※ 全国勝率・当地勝率をイン逃げ率として代用しません。</small>';
+   raw.prepend(summary);
+   for(const pre of keys){const d=document.createElement('details');d.className='water-raw-details';d.innerHTML='<summary>技術的な項目一覧を見る</summary>';pre.replaceWith(d);d.appendChild(pre)}
+  });
+  observer.observe(result,{childList:true});
+ }
+})();
+</script>
+
+<section class="card" id="water123" style="border:2px solid #b8d1e9">
+<h2>㉑ WATER 12.3｜選手別過去成績の取得可否</h2>
+<p class="muted">候補データ元「艇愛ボートレースDB」の選手別結果CSVを読み込めるか診断します。取得できた場合も、列の定義と実際の進入コース、対象日より前の成績かを確認するまでは逃げ率として使用しません。</p>
+<label for="w123Racer">選手登録番号（4桁）</label><input id="w123Racer" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="例：4320">
+<button id="w123Check" style="width:100%;margin-top:8px">選手別データの取得可否を確認</button>
+<p id="w123Status" role="status" class="muted">未実行</p><div id="w123Result"></div>
+</section>
+<script>
+(()=>{
+ const byId=id=>document.getElementById(id),b=byId('w123Check'),status=byId('w123Status'),out=byId('w123Result');
+ if(!b)return;
+ b.onclick=async()=>{
+  const id=byId('w123Racer').value.trim();
+  if(!/^\d{4}$/.test(id)){status.textContent='4桁の登録番号を入力してください';return}
+  b.disabled=true;status.textContent='取得可否を確認中…';out.textContent='';
+  try{
+   const u='https://boatrace-db.jp/api/racer/'+id+'/results/';
+   const response=await fetch(u,{cache:'no-store'});
+   if(!response.ok)throw Error('HTTP '+response.status);
+   const t=await response.text();
+   if(t.length>10000000)throw Error('ファイルが大きすぎます');
+   const rows=t.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean);
+   const head=rows[0]||'';
+   status.textContent='通信成功：'+rows.length+'行。列の意味は未検証です。';
+   const box=document.createElement('div');box.className='race';
+   const label=document.createElement('strong');label.textContent='先頭行（列名・見出しの候補）';
+   const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;font-size:12px';pre.textContent=head.slice(0,1800);
+   const note=document.createElement('p');note.className='warn';note.textContent='この通信テストだけでは、1コース逃げ率65%以上の検証はできません。レース時点の過去データと実際の進入コースを照合する必要があります。';
+   box.append(label,pre,note);out.append(box);
+  }catch(e){status.textContent='取得できませんでした：'+String(e?.message||e)+'。CORS・接続・公開状況を確認する必要があります。';}
+  finally{b.disabled=false}
+ };
+})();
+</script>
+
+<section class="card" id="water125" style="border:2px solid #aac7d8">
+<h2>㉒ WATER 12.6｜選手履歴の取得・保存（試験）</h2>
+<p class="muted">艇愛ボートレースDBの公開CSVを、選手1人ずつ取得して列を確認します。提供元の要請に合わせ、1日2回まで・自動連続取得なし。取得済みデータはこの端末に保存して再利用します。</p>
+<label for="w125Id">選手登録番号</label><input id="w125Id" maxlength="4" inputmode="numeric" placeholder="例：4320">
+<button id="w125Fetch" style="width:100%;margin-top:8px">1選手の履歴を取得して列を確認</button>
+<p id="w125Msg" role="status" class="muted">未実行</p><button type="button" id="w126Cache" class="secondary" style="width:100%;margin-top:6px">保存済み履歴を読み込む（通信なし）</button><p id="w126CacheStatus" class="muted">保存済みデータ：未確認</p>
+<div id="w125Info"></div>
+<p class="muted">データ提供：<a href="https://boatrace-db.jp/" target="_blank" rel="noopener">艇愛ボートレースDB</a>。利用条件：<a href="https://boatrace-db.jp/about/data/" target="_blank" rel="noopener">データについて</a>。CSV列の意味が確定しない場合は自動で65%判定に使用しません。</p>
+</section>
+<script>
+(()=>{
+ const el=id=>document.getElementById(id),btn=el('w125Fetch'),msg=el('w125Msg'),info=el('w125Info');
+ const cacheKey='water126_history_cache_v1';
+ function loadCache(){try{const o=JSON.parse(localStorage.getItem(cacheKey)||'{}');return o&&typeof o==='object'?o:{}}catch{return {}}}
+ function cacheStatus(){const c=loadCache();el('w126CacheStatus').textContent='保存済みデータ：'+Object.keys(c).length+'選手。端末内に保存（ブラウザデータ消去で消失）';}
+ function restore(){const c=loadCache();let n=0;for(const [id,v] of Object.entries(c)){if(!/^\d{4}$/.test(id)||!Array.isArray(v.rows))continue;const r=window.water125Import?.(v.rows,id,{date:0,course:1,finish:2});if(r)n++}cacheStatus();return n;}
+ el('w126Cache').onclick=()=>{const n=restore();msg.textContent='保存済み履歴 '+n+'選手を読み込みました。通信は行っていません。';};
+ cacheStatus();
+ // Restore verified cached player histories at startup so the verification workflow can use them.
+ try{restore()}catch(e){console.warn('履歴キャッシュの復元に失敗',e)}
+ if(!btn)return;
+ function parseCSV(t){const a=[];let row=[],cell='',quoted=false;for(let i=0;i<t.length;i++){const c=t[i];if(c==='"'){if(quoted&&t[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&t[i+1]==='\n')i++;row.push(cell);if(row.some(Boolean))a.push(row);row=[];cell=''}else cell+=c}row.push(cell);if(row.some(Boolean))a.push(row);return a}
+ function safe(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+ btn.onclick=async()=>{
+  const id=el('w125Id').value.trim();if(!/^\d{4}$/.test(id)){msg.textContent='登録番号4桁を入力してください';return}
+  const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Tokyo'});
+  let usage={day:today,count:0};try{usage=JSON.parse(localStorage.getItem('water125_usage')||'null')||usage}catch{}
+  if(usage.day!==today)usage={day:today,count:0};
+  if(usage.count>=2){msg.textContent='提供元へのアクセスを抑えるため、本日の取得上限（2回）に達しました。';return}
+  btn.disabled=true;msg.textContent='CSVを取得しています…';info.innerHTML='';
+  usage.count++;localStorage.setItem('water125_usage',JSON.stringify(usage));
+  try{
+   const response=await fetch('https://boatrace-db.jp/api/racer/'+id+'/results/',{cache:'default'});
+   if(!response.ok)throw Error('HTTP '+response.status);
+   const t=await response.text();if(t.length>12000000)throw Error('ファイルサイズが大きすぎます');
+   const rows=parseCSV(t.replace(/^\uFEFF/,''));if(rows.length<2)throw Error('CSVの内容が不足しています');
+   const headers=rows[0].map(x=>x.trim());const data=rows.slice(1);
+   if(headers.some(h=>/^\s*<!doctype|^\s*<html/i.test(h)))throw Error('CSVではなくHTMLが返されました');
+   const field=(patterns)=>headers.findIndex(h=>patterns.some(p=>p.test(h)));
+   const map={date:field([/^date$/i,/レース日/,/^日付$/,/開催日/]),course:field([/^course$/i,/進入コース/,/^コース$/]),finish:field([/^finish$/i,/^rank$/i,/^着順$/,/着位/])};
+   const preview='<details><summary>CSV列名を確認（開発用）</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto">'+safe(headers.join(' / '))+'</pre></details>';
+   info.innerHTML='<div class="race"><strong>CSV取得成功：'+data.length+'行</strong>'+preview+'</div>';
+   if(Object.values(map).some(v=>v<0)){
+    msg.textContent='通信成功。ただし日付・進入コース・着順の列を自動確定できません。誤判定防止のため履歴には登録していません。';return;
+   }
+   const normal=data.map(r=>{let date=String(r[map.date]||'').trim().replace(/\//g,'-');if(/^\d{8}$/.test(date))date=date.slice(0,4)+'-'+date.slice(4,6)+'-'+date.slice(6);return [date,r[map.course],r[map.finish]]});
+   const usable=normal.filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r[0])&&/^[1-6]$/.test(String(r[1]).trim())&&/^(?:[1-6]|F|L0|L1|K0|K1|S0|S1|S2)?$/.test(String(r[2]).trim()));
+   if(!usable.length)throw Error('有効な日付・進入コース・着順を確認できませんでした');
+   const result=window.water125Import?.(usable,id,{date:0,course:1,finish:2});
+   if(!result)throw Error('履歴読込機能が見つかりません');
+   try{const c=loadCache();c[id]={savedAt:new Date().toISOString(),rows:usable};localStorage.setItem(cacheKey,JSON.stringify(c));cacheStatus()}catch(e){info.insertAdjacentHTML('beforeend','<p class="warn">端末への保存に失敗しました。容量不足の可能性があります。</p>')}
+   msg.textContent='取得成功：1コース履歴 '+result.courseOne+'走。対象日より前の成績だけで65%判定します。';
+   info.insertAdjacentHTML('beforeend','<p class="muted">追加履歴 '+result.added+'件。検証は②「過去データ検証」で実行できます。取得はこの選手1人分のみです。</p>');
+  }catch(e){msg.textContent='取得失敗：'+String(e?.message||e)+'。接続・CORS・CSV形式の確認が必要です。'}
+  finally{btn.disabled=false}
+ };
+ // Put the external-data test in the developer menu, not the main verification flow.
+ const dev=el('water120');if(dev){const parent=dev.parentElement;dev.insertAdjacentElement('afterend',el('water125'))}
+ const nav=el('waterNav');if(nav){nav.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{el('water125').style.display=b.dataset.tab==='dev'?'block':'none'}));el('water125').style.display='none'}
+})();
+</script>
+
+<section class="card" id="water127"><h2>WATER 12.7｜65%以上・検証スタート</h2>
+<p class="muted">操作はこの画面から。個人1コース成績がないレースは判定不可とし、予測確率で代用しません。外部CSV自動取得は通信・提供元形式の確認が必要です。</p>
+<div class="race"><strong>検証の流れ</strong><p>① 選手履歴の読込状況を確認 → ② 21日間の検証 → ③ 結果を確認</p><p id="w127Data" class="muted">選手履歴を確認しています…</p></div>
+<button id="w127Run" style="width:100%">65%以上の21日間検証を開始</button>
+<p id="w127Help" class="muted" role="status">登録済みの選手履歴が不足している場合、判定不可の件数を表示します。</p>
+<details><summary>選手履歴を追加する・開発用の詳しい機能を開く</summary><p class="muted">④「開発・診断」で外部CSVの取得を試すか、②の履歴CSV読込欄を使ってください。自動取得が未確認の間は、実データ検証の完了を保証しません。</p></details>
+</section>
+<script>
+(()=>{
+ const el=id=>document.getElementById(id),run=el('w127Run'),info=el('w127Data'),help=el('w127Help');
+ function update(){try{const c=JSON.parse(localStorage.getItem('water126_history_cache_v1')||'{}');const n=Object.keys(c).filter(x=>/^\d{4}$/.test(x)).length;info.textContent='端末に保存済みの選手履歴：'+n+'人。過去21日間の全選手を網羅しているとは限りません。';}catch{info.textContent='保存済み選手履歴：確認できません'}}
+ run.onclick=()=>{const b=el('w119Run');if(!b){help.textContent='検証エンジンが見つかりません';return}el('w119Days').value='21';help.textContent='検証を実行しています。結果はこの下に表示されます。';b.click();const out=el('w119Result');if(out&&out.parentElement!==el('water127')){el('water127').appendChild(el('w119Status'));el('water127').appendChild(out);el('water127').appendChild(el('w119Csv'));}update();};
+ update();
+ const nav=el('waterNav');if(nav){nav.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{el('water127').style.display=b.dataset.tab==='verify'?'block':'none';if(b.dataset.tab==='verify')update()}));el('water127').style.display='none';}
+ const verify=el('water119');if(verify)verify.insertAdjacentElement('beforebegin',el('water127'));
+})();
+</script>
+
+<section class="card" id="water128" style="border:2px solid #9eb7d4">
+<h2>WATER 12.9｜公開CSV接続・代替取込</h2>
+<p class="muted">接続失敗時は取得元を切り替えて再試行します。接続できない場合も、CSVファイルを手動で読み込んで形式を確認できます。</p>
+<label for="w128Date">調査日</label><input id="w128Date" type="date" value="2026-11-18">
+<button id="w128Run" style="width:100%;margin-top:8px">公開CSVを接続確認（代替先も試す）</button>
+<p id="w128Status" class="muted" role="status">未実行</p><div id="w128Result"></div>
+<details style="margin-top:12px"><summary>通信できない場合：CSVファイルを手動で読み込む</summary>
+<p class="muted">以下の公開ページから対象日のCSVを保存して読み込みます。ファイルは外部へ送信しません。</p>
+<p><a id="w129ResultsLink" target="_blank" rel="noopener">レース結果CSVを開く</a> ／ <a id="w129CardsLink" target="_blank" rel="noopener">出走表CSVを開く</a></p>
+<label>レース結果CSV<input type="file" id="w129ResultFile" accept=".csv,text/csv"></label>
+<label>出走表CSV<input type="file" id="w129CardFile" accept=".csv,text/csv"></label>
+<button id="w129ReadFiles" type="button">選んだCSVの列を確認する</button>
+</details>
+<p class="muted">公開元：BoatraceCSV。CSVの取得確認だけでは、個人イン逃げ率65%以上の検証は成立しません。</p>
+</section>
+<script>
+(()=>{
+ const el=id=>document.getElementById(id),run=el('w128Run'),status=el('w128Status'),out=el('w128Result'),date=el('w128Date');
+ const safe=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const sourceTypes=[{label:'レース結果',path:'results/realtime',required:['レースコード','決まり手','1コース_艇番','1着_艇番']},{label:'出走表',path:'programs/race_cards',required:['レースコード','艇1_登録番号']}];
+ function urls(path,day){const p=day.replaceAll('-','/'),suffix='/data/'+path+'/'+p+'.csv';return ['https://boatracecsv.github.io'+suffix,'https://raw.githubusercontent.com/BoatraceCSV/boatracecsv.github.io/main'+suffix]}
+ function parseFirst(text){const rows=[];let row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';if(rows.length>=2)break}else cell+=c}if(rows.length<2&& (row.length||cell)){row.push(cell);rows.push(row)}return rows}
+ function analyze(text,src){if(text.length<30||/^\s*<!doctype|^\s*<html/i.test(text))throw Error('CSVではない応答');const rows=parseFirst(text.replace(/^\uFEFF/,''));if(rows.length<2)throw Error('CSVにデータ行がありません');const headers=rows[0],missing=src.required.filter(x=>!headers.includes(x));return {ok:!missing.length,columns:headers.length,bytes:text.length,missing,headers}}
+ function display(results){out.innerHTML=results.map(x=>'<div class="race"><strong>'+safe(x.label)+'：'+(x.ok?'列確認OK':'確認が必要')+'</strong><p class="muted">'+safe(x.ok?'取得成功／'+x.columns+'列':x.error||'必要な列が不足')+'</p>'+(x.missing?.length?'<p>不足列：'+safe(x.missing.join('、'))+'</p>':'')+'<details><summary>接続履歴・列名</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:170px;overflow:auto">'+safe((x.attempts||[]).join('\n')+'\n'+(x.headers||[]).join(' / '))+'</pre></details></div>').join('')}
+ function errorMessage(e){const m=String(e?.message||e);return m==='Failed to fetch'||m==='Load failed'||/NetworkError|fetch failed/i.test(m)?'通信失敗（CORS・ネットワーク・URLなどを要確認）':m}
+ function updateLinks(){const d=date.value;if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return;el('w129ResultsLink').href=urls(sourceTypes[0].path,d)[0];el('w129CardsLink').href=urls(sourceTypes[1].path,d)[0]}
+ date.addEventListener('change',updateLinks);updateLinks();
+ run.onclick=async()=>{const d=date.value;if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){status.textContent='調査日を指定してください';return}run.disabled=true;out.innerHTML='';status.textContent='接続確認中（代替先も順番に確認します）…';const results=[];
+ for(const src of sourceTypes){const attempts=[];let result=null;for(const url of urls(src.path,d)){try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);let r;try{r=await fetch(url,{cache:'no-store',mode:'cors',signal:controller.signal})}finally{clearTimeout(timer)}if(!r.ok)throw Error('HTTP '+r.status);const text=await r.text();result={label:src.label,...analyze(text,src),attempts:[...attempts,'成功: '+url]};if(result.ok)break;attempts.push('列不足: '+url)}catch(e){attempts.push(errorMessage(e)+': '+url)}}results.push(result||{label:src.label,ok:false,error:'全取得先で失敗。技術情報に接続履歴があります',attempts})}
+ display(results);const count=results.filter(x=>x.ok).length;status.textContent=count===2?'2種類のCSVを取得し、基本列を確認できました。':count===0?'2種類とも取得できませんでした。接続履歴を確認するか、手動取込をお試しください。':'一部取得できました。未取得のCSVは手動取込も可能です。';try{localStorage.setItem('water129_last_diagnostic',JSON.stringify({at:new Date().toISOString(),date:d,results}))}catch{}run.disabled=false};
+ el('w129ReadFiles').onclick=async()=>{const files=[el('w129ResultFile').files[0],el('w129CardFile').files[0]];const results=[];for(let i=0;i<2;i++){if(!files[i])continue;try{const text=await files[i].text();results.push({label:sourceTypes[i].label,...analyze(text,sourceTypes[i]),attempts:['端末のファイル: '+files[i].name]})}catch(e){results.push({label:sourceTypes[i].label,ok:false,error:errorMessage(e)})}}if(!results.length){status.textContent='先にCSVファイルを選んでください';return}display(results);status.textContent='手動取込の列確認が完了しました。65%以上の検証はまだ実行していません。'};
+ const old=el('water128');if(old&&old!==el('water120')){const dev=el('water120');if(dev)dev.insertAdjacentElement('afterend',old)}
+ const nav=el('waterNav');if(nav){nav.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{old.style.display=b.dataset.tab==='dev'?'block':'none'}));old.style.display='none'}
+})();
+</script>
+</body></html>
